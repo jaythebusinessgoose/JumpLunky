@@ -1,14 +1,15 @@
 meta.name = 'Jumplunky'
-meta.version = '1.4'
+meta.version = '1.5'
 meta.description = 'Challenging platforming puzzles'
 meta.author = 'JayTheBusinessGoose'
 
 local DWELLING_LEVEL <const> = 0
 local VOLCANA_LEVEL <const> = 1
 local TEMPLE_LEVEL <const> = 2
-local SUNKEN_LEVEL <const> = 3
+local ICE_LEVEL <const> = 3
+local SUNKEN_LEVEL <const> = 4
 
-local default_levels = {DWELLING_LEVEL, VOLCANA_LEVEL, TEMPLE_LEVEL, SUNKEN_LEVEL}
+local default_levels = {DWELLING_LEVEL, VOLCANA_LEVEL, TEMPLE_LEVEL, ICE_LEVEL, SUNKEN_LEVEL}
 local levels = default_levels
 
 first_level = levels[1]
@@ -21,7 +22,7 @@ local save_context
 initial_bombs = 0
 initial_ropes = 0
 
-local DIFFICULTY = {
+local DIFFICULTY <const> = {
 	EASY = 0,
 	NORMAL = 1,
 	HARD = 2,
@@ -76,14 +77,38 @@ hard_stats = {
 	completions = 0,
 }
 
--- Stats for games played in the current difficulty.
-function current_stats()
-	if current_difficulty == DIFFICULTY.HARD then
+legacy_normal_stats = nil
+legacy_easy_stats = nil
+legacy_hard_stats = nil
+
+-- Stats for games played at the input difficulty.
+function stats_for_difficulty(difficulty)
+	if difficulty == DIFFICULTY.HARD then
 		return hard_stats
-	elseif current_difficulty == DIFFICULTY.EASY then
+	elseif difficulty == DIFFICULTY.EASY then
 		return easy_stats
 	end
 	return normal_stats
+end
+
+-- Stats for games played in the current difficulty.
+function current_stats()
+	return stats_for_difficulty(current_difficulty)
+end
+
+-- Stats for games played at the input difficulty.
+function legacy_stats_for_difficulty(difficulty)
+	if difficulty == DIFFICULTY.HARD then
+		return legacy_hard_stats
+	elseif difficulty == DIFFICULTY.EASY then
+		return legacy_easy_stats
+	end
+	return legacy_normal_stats
+end
+
+-- Stats for games played in the current difficulty.
+function current_legacy_stats()
+	return legacy_stats_for_difficulty(current_difficulty)
 end
 
 -- Stats for games played in the default difficulty in hardcore mode.
@@ -113,14 +138,38 @@ hardcore_stats_hard = {
 	max_idol_best_time = 0,
 }
 
--- Stats for games played in the current difficulty in hardcore mode.
-function current_hardcore_stats()
-	if current_difficulty == DIFFICULTY.HARD then
+legacy_hardcore_stats = nil
+legacy_hardcore_stats_easy = nil
+legacy_hardcore_stats_hard = nil
+
+-- Stats for games played at the input difficulty in hardcore mode.
+function hardcore_stats_for_difficulty(difficulty)
+	if difficulty == DIFFICULTY.HARD then
 		return hardcore_stats_hard
-	elseif current_difficulty == DIFFICULTY.EASY then
+	elseif difficulty == DIFFICULTY.EASY then
 		return hardcore_stats_easy
 	end
 	return hardcore_stats
+end
+
+-- Stats for games played in the current difficulty in hardcore mode.
+function current_hardcore_stats()
+	return hardcore_stats_for_difficulty(current_difficulty)
+end
+
+-- Stats for games played at the input difficulty in hardcore mode.
+function legacy_hardcore_stats_for_difficulty(difficulty)
+	if difficulty == DIFFICULTY.HARD then
+		return legacy_hardcore_stats_hard
+	elseif difficulty == DIFFICULTY.EASY then
+		return legacy_hardcore_stats_easy
+	end
+	return legacy_hardcore_stats
+end
+
+-- Stats for games played in the current difficulty in hardcore mode.
+function current_legacy_hardcore_stats()
+	return legacy_hardcore_stats_for_difficulty(current_difficulty)
 end
 
 -- True if the player has seen ana dead in the sunken city level.
@@ -171,6 +220,10 @@ end
 
 -- Whether the win screen should currently be showing.
 local win = false
+local show_stats = false
+local show_legacy_stats = false
+local journal_page = DIFFICULTY.NORMAL
+
 -- Stats for the current completion.
 completion_time = 0
 completion_time_new_pb = false
@@ -181,15 +234,96 @@ completion_idols = 0
 -- Whether in a game and not in the menus -- including in the base camp.
 local has_seen_base_camp = false
 
+local keep_entity_x, keep_entity_y, keep_entity_layer
+
+------------------------
+---- BUTTON PROMPTS ----
+------------------------
+
+-- The prompt type determines what icon is shown along with the prompt.
+local PROMPT_TYPE <const> = {
+	DOOR = 0,
+	INTERACT = 1,
+	VIEW = 2,
+	SPEECH = 3,
+}
+
+local tvs = {}
+local button_prompts_hidden = false
+function hide_button_prompts(hidden)
+	button_prompts_hidden = hidden
+end
+
+-- Spawn a button prompt at the coordinates.
+function spawn_button_prompt(prompt_type, x, y, layer)
+	-- Spawn a TV to "host" the prompt. We will hide the TV and silence its sound.
+	local tv_uid = spawn_entity(ENT_TYPE.ITEM_TV, x, y, layer, 0, 0)
+	local tv = get_entity(tv_uid)
+	tv.flags = set_flag(tv.flags, ENT_FLAG.INVISIBLE)
+	local prompt = get_entity(entity_get_items_by(tv.fx_button.uid, ENT_TYPE.FX_BUTTON_DIALOG, 0)[1])
+	prompt.animation_frame = 137 + 16 * prompt_type
+	tvs[#tvs+1] = tv
+	return tv_uid
+end
+
+-- Silence the sound of TVs turning on -- these TVs are used to host the button prompts.
+set_vanilla_sound_callback(VANILLA_SOUND.ITEMS_TV_LOOP, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function(playing_sound)
+	playing_sound:set_volume(0)
+end)
+
+set_callback(function()
+	for _, tv in ipairs(tvs) do
+		-- If the station was changed, reset it back to 0 (off).
+		tv.station = 0
+		if button_prompts_hidden then
+			tv.flags = clr_flag(tv.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+		else
+			tv.flags = set_flag(tv.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+		end
+	end
+end, ON.GAMEFRAME)
+
+-------------------------
+---- /BUTTON PROMPTS ----
+-------------------------
+
+---------------
+---- SOUNDS ---
+---------------
+
+function play_sound(vanilla_sound)
+	sound = get_sound(vanilla_sound)
+	if sound then
+		sound:play()
+	end
+end
+
+
+-- Make spring traps quieter.
+set_vanilla_sound_callback(VANILLA_SOUND.TRAPS_SPRING_TRIGGER, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function(playing_sound)
+	playing_sound:set_volume(.3)
+end)
+
+-- Mute the vocal sound that was playing on the signs when they "say" something.
+set_vanilla_sound_callback(VANILLA_SOUND.UI_NPC_VOCAL, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function(playing_sound)
+	playing_sound:set_volume(0)
+end)
+
+----------------
+---- /SOUNDS ---
+----------------
+
 --------------
 ---- CAMP ----
 --------------
 
 local volcana_door
 local temple_door
+local ice_door
 local sunken_door
 local volcana_sign
 local temple_sign
+local ice_sign
 local sunken_sign
 
 local continue_door
@@ -203,6 +337,8 @@ function title_of_level(level)
 		return "Volcana"
 	elseif level == TEMPLE_LEVEL then
 		return "Temple"
+	elseif level == ICE_LEVEL then
+		return "Ice Caves"
 	elseif level == SUNKEN_LEVEL then
 		return "Sunken City"
 	end
@@ -218,6 +354,8 @@ function texture_door_at(x, y, layer, level)
 			return "floor_volcano.png"
 		elseif level == TEMPLE_LEVEL then
 			return "floor_temple.png"
+		elseif level == ICE_LEVEL then
+			return "floor_ice.png"
 		elseif level == SUNKEN_LEVEL then
 			return "floor_sunken.png"
 		else
@@ -272,6 +410,10 @@ set_callback(function ()
 		local x, y, layer = get_position(temple_door)
 		texture_door_at(x, y, layer, TEMPLE_LEVEL)
 	end
+	if ice_door then
+		local x, y, layer = get_position(ice_door)
+		texture_door_at(x, y, layer, ICE_LEVEL)
+	end
 	if sunken_door then
 		local x, y, layer = get_position(sunken_door)
 		texture_door_at(x, y, layer, SUNKEN_LEVEL)
@@ -304,6 +446,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local sign = get_entity(volcana_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	spawn_button_prompt(PROMPT_TYPE.VIEW, x + 3, y, layer)
 	spawn_camp_idol_for_level(VOLCANA_LEVEL, x + 2, y, layer)
 	return true
 end, "volcana_shortcut")
@@ -314,10 +457,25 @@ set_pre_tile_code_callback(function(x, y, layer)
 	temple_door = spawn_door(x + 1, y, layer, world_for_level(TEMPLE_LEVEL), level_for_level(TEMPLE_LEVEL), theme_for_level(TEMPLE_LEVEL))
 	temple_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 3, y, layer, 0, 0)
 	local sign = get_entity(temple_sign)
+	-- This stops the sign from displaying its default toast text when pressing the door button.
 	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	spawn_button_prompt(PROMPT_TYPE.VIEW, x + 3, y, layer)
 	spawn_camp_idol_for_level(TEMPLE_LEVEL, x + 2, y, layer)
 	return true
 end, "temple_shortcut")
+
+-- Creates a "room" for the Ice Caves shortcut, with a door, a sign, and an idol if it has been collected.
+define_tile_code("ice_shortcut")
+set_pre_tile_code_callback(function(x, y, layer)
+	ice_door = spawn_door(x - 1, y, layer, world_for_level(ICE_LEVEL), level_for_level(ICE_LEVEL), theme_for_level(ICE_LEVEL))
+	ice_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x - 3, y, layer, 0, 0)
+	local sign = get_entity(ice_sign)
+	-- This stops the sign from displaying its default toast text when pressing the door button.
+	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	spawn_button_prompt(PROMPT_TYPE.VIEW, x - 3, y, layer)
+	spawn_camp_idol_for_level(ICE_LEVEL, x - 2, y, layer)
+	return true
+end, "ice_shortcut")
 
 -- Creates a "room" for the Sunken City shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("sunken_shortcut")
@@ -327,6 +485,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local sign = get_entity(sunken_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	spawn_button_prompt(PROMPT_TYPE.VIEW, x - 3, y, layer)
 	spawn_camp_idol_for_level(SUNKEN_LEVEL, x - 2, y, layer)
 	return true
 end, "sunken_shortcut")
@@ -352,8 +511,10 @@ set_pre_tile_code_callback(function(x, y, layer)
 		theme_for_level(current_saved_run().saved_run_level))
 	continue_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 3, y, layer, 0, 0)
 	local sign = get_entity(continue_sign)
+	
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	spawn_button_prompt(PROMPT_TYPE.VIEW, x + 3, y, layer)
 	return true
 end, "continue_run")
 
@@ -365,7 +526,8 @@ set_pre_tile_code_callback(function(x, y, layer)
 end, "dwelling_idol")
 
 local tunnel_x, tunnel_y, tunnel_layer
-local hardcore_sign, easy_sign, normal_sign, hard_sign
+local hardcore_sign, easy_sign, normal_sign, hard_sign, stats_sign, legacy_stats_sign
+local hardcore_tv, easy_tv, normal_tv, hard_tv, stats_tv, legacy_stats_tv
 -- Spawn tunnel, and spawn the difficulty and mode signs relative to her position.
 define_tile_code("tunnel_position")
 set_pre_tile_code_callback(function(x, y, layer)
@@ -375,21 +537,39 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local hardcore_sign_entity = get_entity(hardcore_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	hardcore_sign_entity.flags = clr_flag(hardcore_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	hardcore_tv = spawn_button_prompt(PROMPT_TYPE.INTERACT, x + 3, y, layer)
 	
 	easy_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 6, y, layer, 0, 0)
 	local easy_sign_entity = get_entity(easy_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	easy_sign_entity.flags = clr_flag(easy_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	easy_tv = spawn_button_prompt(PROMPT_TYPE.INTERACT, x + 6, y, layer)
 	
 	normal_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 7, y, layer, 0, 0)
 	local normal_sign_entity = get_entity(normal_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	normal_sign_entity.flags = clr_flag(normal_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	normal_tv = spawn_button_prompt(PROMPT_TYPE.INTERACT, x + 7, y, layer)
 	
 	hard_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 8, y, layer, 0, 0)
 	local hard_sign_entity = get_entity(hard_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	hard_sign_entity.flags = clr_flag(hard_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	hard_tv = spawn_button_prompt(PROMPT_TYPE.INTERACT, x + 8, y, layer)
+	
+	stats_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 10, y, layer, 0, 0)
+	local stats_sign_entity = get_entity(stats_sign)
+	-- This stops the sign from displaying its default toast text when pressing the door button.
+	stats_sign_entity.flags = clr_flag(stats_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	stats_tv = spawn_button_prompt(PROMPT_TYPE.VIEW, x + 10, y, layer)
+	
+	if legacy_normal_stats and legacy_easy_stats and legacy_hard_stats and legacy_hardcore_stats and legacy_hardcore_stats_easy and legacy_hardcore_stats_hard then
+		legacy_stats_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 11, y, layer, 0, 0)
+		local legacy_stats_sign_entity = get_entity(legacy_stats_sign)
+		-- This stops the sign from displaying its default toast text when pressing the door button.
+		legacy_stats_sign_entity.flags = clr_flag(legacy_stats_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+		legacy_stats_tv = spawn_button_prompt(PROMPT_TYPE.VIEW, x + 11, y, layer)
+	end
 end, "tunnel_position")
 
 local tunnel
@@ -425,6 +605,108 @@ function hardcore_available()
 	return unique_idols_collected() == #default_levels
 end
 
+-- STATS
+local stats_opened_time = nil
+local stats_closed_time = nil
+local last_left_input = nil
+local last_right_input = nil
+set_callback(function()
+	if state.theme ~= THEME.BASE_CAMP then return end
+	if #players < 1 then return end
+	local player = players[1]
+	
+	-- Show the stats journal when pressing the door button by the sign.
+	if player:is_button_pressed(BUTTON.DOOR) and player.layer == get_entity(stats_sign).layer and distance(player.uid, stats_sign) <= .5 then
+		show_stats = true
+		show_legacy_stats = false
+		stats_opened_time = state.time_level
+		-- Do not allow the player to move while showing stats.
+		steal_input(player.uid)
+		-- Disable pausing.
+		state.level_flags = clr_flag(state.level_flags, 20)
+		-- Cancel speech bubbles so they don't show above stats.
+		cancel_speechbubble()
+		-- Hide the prompt so it doesn't show above stats.
+		hide_button_prompts(true)
+		journal_page = current_difficulty
+
+		play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
+	end
+	
+	-- Show the legacy stats journal when pressing the door button by the sign.
+	if player:is_button_pressed(BUTTON.DOOR) and legacy_stats_sign and player.layer == get_entity(legacy_stats_sign).layer and distance(player.uid, legacy_stats_sign) <= .5 then
+		show_stats = true
+		show_legacy_stats = true
+		stats_opened_time = state.time_level
+		-- Do not allow the player to move while showing stats.
+		steal_input(player.uid)
+		-- Disable pausing.
+		state.level_flags = clr_flag(state.level_flags, 20)
+		-- Cancel speech bubbles so they don't show above stats.
+		cancel_speechbubble()
+		-- Hide the prompt so it doesn't show above stats.
+		hide_button_prompts(true)
+		journal_page = current_difficulty
+
+		play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
+	end
+
+	-- Controls while stats journal is opened.
+	if show_stats then
+		-- Gets a bitwise integer that contains the set of pressed buttons while the input is stolen.
+		local buttons = read_stolen_input(player.uid)
+		local stats_opened_long = stats_opened_time and state.time_level - stats_opened_time > 40
+		-- 1 = jump, 2 = whip, 3 = bomb, 4 = rope, 6 = Door
+		if test_flag(buttons, 1) or test_flag(buttons, 2) or test_flag(buttons, 3) or test_flag(buttons, 4) or (stats_opened_long and test_flag(buttons, 6)) then
+			show_stats = false
+			-- Keep track of the time that the stats were closed. This will allow us to enable the player's
+			-- inputs later so that the same input isn't recognized again to cause a bomb to be thrown or another action.
+			stats_closed_time = state.time_level
+			stats_opened_time = nil
+			journal_page = DIFFICULTY.NORMAL
+			state.level_flags = set_flag(state.level_flags, 20)
+			play_sound(VANILLA_SOUND.UI_JOURNAL_OFF)
+			return
+		end
+		
+		function play_journal_pageflip_sound()
+			play_sound(VANILLA_SOUND.MENU_PAGE_TURN)
+		end
+		
+		-- Change difficulty when pressing left or right.
+		if test_flag(buttons, 9) then -- left_key
+			if not last_left_input or state.time_level - last_left_input > 20 then
+				last_left_input = state.time_level
+				if journal_page > DIFFICULTY.EASY then
+					play_journal_pageflip_sound()
+					journal_page = math.max(journal_page - 1, DIFFICULTY.EASY)				
+				end
+			end
+		else
+			last_left_input = nil
+		end
+		if test_flag(buttons, 10) then -- right_key
+			if not last_right_input or state.time_level - last_right_input > 20 then
+				last_right_input = state.time_level
+				if journal_page < DIFFICULTY.HARD then
+					play_journal_pageflip_sound()
+					journal_page = math.min(journal_page + 1, DIFFICULTY.HARD)
+				end
+			end
+		else
+			last_right_input = nil
+		end
+	elseif stats_closed_time ~= nil and state.time_level  - stats_closed_time > 20 then
+		-- Re-activate the player's inputs 40 frames after the button was pressed to close the stats.
+		-- This gives plenty of time for the player to release the button that was pressed, but also doesn't feel
+		-- too long since it mostly occurs while the camera is moving back.
+		return_input(player.uid)
+		state.level_flags = set_flag(state.level_flags, 20)
+		hide_button_prompts(false)
+		stats_closed_time = nil
+	end
+end, ON.GAMEFRAME)
+
 local tunnel_enter_displayed
 local tunnel_exit_displayed
 local tunnel_enter_hardcore_state
@@ -456,6 +738,8 @@ local player_near_hardcore_sign = false
 local player_near_easy_sign = false
 local player_near_normal_sign = false
 local player_near_hard_sign = false
+local player_near_stats_sign = false
+local player_near_legacy_stats_sign = false
 
 set_callback(function()
 	if state.theme ~= THEME.BASE_CAMP then return end
@@ -468,6 +752,8 @@ set_callback(function()
 			toast("Shortcut to Volcana trial")
 		elseif player.layer == LAYER.FRONT and temple_sign and distance(player.uid, temple_sign) <= 1 then
 			toast("Shortcut to Temple trial")
+		elseif player.layer == LAYER.FRONT and ice_sign and distance(player.uid, ice_sign) <= 1 then
+			toast("Shortcut to Ice Caves trial")
 		elseif player.layer == LAYER.FRONT and sunken_sign and distance(player.uid, sunken_sign) <= 1 then
 			toast("Shortcut to Sunken City trial")
 		elseif player.layer == LAYER.FRONT and continue_sign and distance(player.uid, continue_sign) <= 1 then
@@ -540,7 +826,9 @@ set_callback(function()
 			elseif unique_idols_collected() < 2 then
 				say(tunnel.uid, "Come back when you're seasoned for a more difficult challenge.", 0, true)
 			elseif hardcore_enabled then
-				say(tunnel.uid, "Maybe that was too much. Go back to the sign to disable hardcore mode.", 0, true)
+				say(tunnel.uid, "Maybe that was too much. Go back over to disable hardcore mode.", 0, true)
+			elseif current_difficulty == DIFFICULTY.HARD then
+				say(tunnel.uid, "Maybe that was too much. Go back over to disable hard mode.", 0, true)
 			elseif hardcore_previously_enabled then
 				say(tunnel.uid, "Back to try again? Step on over.", 0, true)
 			elseif hardcore_available() then
@@ -631,6 +919,30 @@ set_callback(function()
 	else
 		player_near_hard_sign = false
 	end
+	if stats_sign and player.layer == get_entity(stats_sign).layer and distance(player.uid, stats_sign) <= .5 then
+		-- When passing by the sign, read out what the sign is for.
+		if not player_near_stats_sign then
+			cancel_speechbubble()
+			player_near_stats_sign = true
+			set_timeout(function()
+				say(stats_sign, "Stats", 0, true)
+			end, 1)
+		end
+	else
+		player_near_stats_sign = false
+	end
+	if legacy_stats_sign and player.layer == get_entity(legacy_stats_sign).layer and distance(player.uid, legacy_stats_sign) <= .5 then
+		-- When passing by the sign, read out what the sign is for.
+		if not player_near_legacy_stats_sign then
+			cancel_speechbubble()
+			player_near_legacy_stats_sign = true
+			set_timeout(function()
+				say(legacy_stats_sign, "Legacy Stats", 0, true)
+			end, 1)
+		end
+	else
+		player_near_legacy_stats_sign = false
+	end
 	
 	local saved_run = current_saved_run()
 	continuing_run = false
@@ -645,6 +957,9 @@ set_callback(function()
 		level = initial_level
 	elseif (temple_door and distance(players[1].uid, temple_door) <= 1) or (temple_sign and distance(player.uid, temple_sign) <= 1) then
 		initial_level = TEMPLE_LEVEL
+		level = initial_level
+	elseif (ice_door and distance(player.uid, ice_door) <= 1) or (ice_sign and distance(player.uid, ice_sign) <= 1) then
+		initial_level = ICE_LEVEL
 		level = initial_level
 	elseif (sunken_door and distance(players[1].uid, sunken_door) <= 1) or (sunken_sign and distance(player.uid, sunken_sign) <= 1) then
 		initial_level = SUNKEN_LEVEL
@@ -698,6 +1013,8 @@ set_callback(function (ctx)
 		level_file_name = 'volc'
     elseif level == TEMPLE_LEVEL then
 		level_file_name = 'temp'
+	elseif level == ICE_LEVEL then
+		level_file_name = 'ice'
     elseif level == SUNKEN_LEVEL then
 		level_file_name = 'sunk'
 	else
@@ -713,12 +1030,12 @@ set_callback(function (ctx)
 	ctx:add_level_files { file_name }
 end, ON.PRE_LOAD_LEVEL_FILES)
 
--- Create a bunch of room templates that can be used in lvl files to create rooms. To create a level
--- larger than 4x6, these must be increased to create more templates. 
+-- Create a bunch of room templates that can be used in lvl files to create rooms. The maximum
+-- level size is 8x15, so we only create that many templates.
 local room_templates = {}
-for x = 0, 3 do
+for x = 0, 7 do
 	local room_templates_x = {}
-	for y = 0, 5 do
+	for y = 0, 14 do
 		local room_template = define_room_template("setroom" .. y .. "_" .. x, ROOM_TEMPLATE_TYPE.NONE)
 		room_templates_x[y] = room_template
 	end
@@ -734,6 +1051,8 @@ function size_of_level(level)
 		return 4, 6
 	elseif level == DWELLING_LEVEL then
 		return 4, 5
+	elseif level == ICE_LEVEL then
+		return 4, 13
 	else
 		return 4, 4
 	end
@@ -742,7 +1061,7 @@ end
 -- Returns how many subrooms down to begin the actual level in x, y. Returning an x offset other than 0 isn't really
 -- fully supported, so could have some undefined results.
 function level_offset(level)
-	return 0, 4
+	return 0, 0
 end
 
 -- Returns the template that will be used to replace the rooms in the generated level.
@@ -781,7 +1100,7 @@ set_callback(function (ctx)
 			ctx:set_room_template(x + offsetX, y + offsetY, LAYER.BACK, buffer_hard_template)
 			ctx:set_room_template(x + offsetX, y + offsetY, LAYER.FRONT, room_templates[x][y])
        	end
-		for y = 1, offsetY - 1 do
+		for y = 0, offsetY - 1 do
 			ctx:set_room_template(x, y , LAYER.BACK, buffer_hard_template)
 			ctx:set_room_template(x, y, LAYER.FRONT, buffer_hard_template)
 		end
@@ -808,6 +1127,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	-- Turn the telescope to the right since we start on the left side of every level. Should not call this
 	-- line in levels that start on the right side.
 	telescope_entity.flags = clr_flag(telescope_entity.flags, ENT_FLAG.FACING_LEFT)
+	spawn_button_prompt(PROMPT_TYPE.VIEW, x, y, layer)
 	return true
 end, "telescope")
 
@@ -820,6 +1140,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	-- Disable the telescope's default interaction because it interferes with the zooming and panning we want to do
 	-- when interacting with the telescope.
 	telescope_entity.flags = clr_flag(telescope_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	spawn_button_prompt(PROMPT_TYPE.VIEW, x, y, layer)
 	return true
 end, "telescope_left")
 
@@ -853,6 +1174,7 @@ set_callback(function()
 			-- While looking through the telescope, the player should not be able to make any inputs. Instead, the movement
 			-- keys will move the camera and the bomb key will dismiss the telescope.
 			steal_input(player.uid)
+			hide_button_prompts(true)
 			break	
 		end
 	end
@@ -901,6 +1223,7 @@ set_callback(function()
 		-- This gives plenty of time for the player to release the button that was pressed, but also doesn't feel
 		-- too long since it mostly occurs while the camera is moving back.
 		return_input(player.uid)
+		hide_button_prompts(false)
 		telescope_was_activated = nil
 	end
 end, ON.FRAME)
@@ -924,6 +1247,42 @@ set_pre_tile_code_callback(function(x, y, layer)
 	spawn_entity(ENT_TYPE.MONS_FIREFROG, x, y, layer, 0, 0)
 	return true
 end, "firefrog")
+
+-- Spawn a turkey in ice that must be extracted.
+define_tile_code("ice_turkey")
+set_pre_tile_code_callback(function(x, y, layer)
+	-- Set the keep_entity properties so that we don't delete this entity with the procedural spawns.
+	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
+	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	local turkey_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
+	local turkey = get_entity(turkey_uid)
+	turkey.inside = ENT_TYPE.MOUNT_TURKEY
+	turkey.animation_frame = 239
+	turkey.color.a = 150
+	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
+	return true
+end, "ice_turkey")
+
+set_post_entity_spawn(function(entity)
+	if level ~= ICE_LEVEL then return end
+	-- Spawn the ice turkey dead so it can't be ridden.
+	entity.health = 0
+end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MOUNT_TURKEY)
+
+-- Spawn a yeti in ice that must be extracted.
+define_tile_code("ice_yeti")
+set_pre_tile_code_callback(function(x, y, layer)
+	-- Set the keep_entity properties so that we don't delete this entity with the procedural spawns.
+	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
+	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	local yeti_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
+	local yeti = get_entity(yeti_uid)
+	yeti.inside = ENT_TYPE.MONS_YETI
+	yeti.animation_frame = 172
+	yeti.color.a = 150
+	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
+	return true
+end, "ice_yeti")
 
 ------------------------
 ---- /SPAWN ENEMIES ----
@@ -982,6 +1341,36 @@ function spawn_idol(x, y , layer)
 	idol.price = 0
 	return true
 end
+
+-- Spawn an idol in ice  that must be extracted.
+define_tile_code("ice_idol")
+set_pre_tile_code_callback(function(x, y, layer)
+	-- Set the keep_entity properties so that we don't delete this entity with the procedural spawns.
+	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
+	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	if current_difficulty == DIFFICULTY.EASY or run_idols_collected[level] then
+		-- Do not spawn the idol in easy or if it has been collected.
+		return true
+	end
+	
+	local idol_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
+	local idol = get_entity(idol_uid)
+	if idols_collected[level] then
+		idol.inside = ENT_TYPE.ITEM_MADAMETUSK_IDOL
+		idol.animation_frame = 172
+	else
+		idol.inside = ENT_TYPE.ITEM_IDOL
+		idol.animation_frame = 31
+	end
+	idol.color.a = 150
+	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
+	return true
+end, "ice_idol")
+
+set_post_entity_spawn(function(entity)
+	-- Set the price to 0 so the player doesn't get gold for returning the idol.
+	entity.price = 0
+end, SPAWN_TYPE.ANY, 0, ENT_TYPE.ITEM_IDOL, ENT_TYPE.ITEM_MADAMETUSK_IDOL)
 
 define_tile_code("idol_reward")
 set_pre_tile_code_callback(function(x, y, layer)
@@ -1064,10 +1453,7 @@ set_callback(function ()
 			has_switched_forcefield = true
 			
 			-- Play a sound when flipping the switch so the player knows something happened.
-			sound = get_sound(VANILLA_SOUND.UI_SECRET)
-			if sound then
-				sound:play()
-			end
+			play_sound(VANILLA_SOUND.UI_SECRET)
 		end
 	end
 end, ON.FRAME)
@@ -1432,10 +1818,7 @@ set_callback(function ()
 		if bat_switch.timer > 0 and bat_entity == nil and not bat_generator.on_off then
 			bat_generator.on_off = true
 			
-			sound = get_sound(VANILLA_SOUND.UI_SECRET)
-			if sound then
-				sound:play()
-			end
+			play_sound(VANILLA_SOUND.UI_SECRET)
 		end
 	end
 end, ON.FRAME)
@@ -1592,9 +1975,12 @@ set_pre_entity_spawn(function(entity, x, y, layer, overlay)
 end, SPAWN_TYPE.ANY, 0, ENT_TYPE.ITEM_CURSEDPOT)
 
 set_post_entity_spawn(function (entity)
-   entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
-   move_entity(entity.uid, 1000, 0, 0, 0)
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.ITEM_TORCH, ENT_TYPE.MONS_PET_DOG, ENT_TYPE.EMBED_GOLD, ENT_TYPE.EMBED_GOLD_BIG, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_NUGGET, ENT_TYPE.ITEM_NUGGET_SMALL, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_CHEST, ENT_TYPE.ITEM_CRATE, ENT_TYPE.MONS_PET_CAT, ENT_TYPE.MONS_PET_HAMSTER, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_RUBY, ENT_TYPE.ITEM_SAPPHIRE, ENT_TYPE.ITEM_EMERALD, ENT_TYPE.ITEM_WALLTORCH, ENT_TYPE.MONS_SCARAB, ENT_TYPE.ITEM_AUTOWALLTORCH, ENT_TYPE.ITEM_WEB, ENT_TYPE.ITEM_GOLDBAR, ENT_TYPE.ITEM_GOLDBARS, ENT_TYPE.MONS_SKELETON, ENT_TYPE.ITEM_CURSEDPOT, ENT_TYPE.MONS_CRITTERDUNGBEETLE, ENT_TYPE.MONS_CRITTERBUTTERFLY, ENT_TYPE.MONS_CRITTERSNAIL, ENT_TYPE.MONS_CRITTERFISH, ENT_TYPE.MONS_CRITTERANCHOVY, ENT_TYPE.MONS_CRITTERCRAB, ENT_TYPE.MONS_CRITTERLOCUST, ENT_TYPE.MONS_CRITTERPENGUIN, ENT_TYPE.MONS_CRITTERFIREFLY, ENT_TYPE.MONS_CRITTERDRONE, ENT_TYPE.MONS_CRITTERSLIME)
+	if state.theme == THEME.BASE_CAMP then return end
+	local x, y, layer = get_position(entity.uid)
+	if keep_entity_x and keep_entity_y and keep_entity_layer and keep_entity_x == x and keep_entity_y == y and keep_entity_layer == layer then return end
+	entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
+	move_entity(entity.uid, 1000, 0, 0, 0)
+end, SPAWN_TYPE.ANY, 0, ENT_TYPE.ITEM_TORCH, ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ENT_TYPE.MONS_PET_DOG, ENT_TYPE.ITEM_BONES, ENT_TYPE.EMBED_GOLD, ENT_TYPE.EMBED_GOLD_BIG, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_NUGGET, ENT_TYPE.ITEM_NUGGET_SMALL, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_CHEST, ENT_TYPE.ITEM_CRATE, ENT_TYPE.MONS_PET_CAT, ENT_TYPE.MONS_PET_HAMSTER, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_RUBY, ENT_TYPE.ITEM_SAPPHIRE, ENT_TYPE.ITEM_EMERALD, ENT_TYPE.ITEM_WALLTORCH, ENT_TYPE.MONS_SCARAB, ENT_TYPE.ITEM_AUTOWALLTORCH, ENT_TYPE.ITEM_WEB, ENT_TYPE.ITEM_GOLDBAR, ENT_TYPE.ITEM_GOLDBARS, ENT_TYPE.MONS_SKELETON, ENT_TYPE.ITEM_CURSEDPOT, ENT_TYPE.MONS_CRITTERDUNGBEETLE, ENT_TYPE.MONS_CRITTERBUTTERFLY, ENT_TYPE.MONS_CRITTERSNAIL, ENT_TYPE.MONS_CRITTERFISH, ENT_TYPE.MONS_CRITTERANCHOVY, ENT_TYPE.MONS_CRITTERCRAB, ENT_TYPE.MONS_CRITTERLOCUST, ENT_TYPE.MONS_CRITTERPENGUIN, ENT_TYPE.MONS_CRITTERFIREFLY, ENT_TYPE.MONS_CRITTERDRONE, ENT_TYPE.MONS_CRITTERSLIME)
 
 -- Spawning via this method essentially ignores the spawn prevention by moving the entity back. This must be called when spawning an
 -- entity that is normally removed.
@@ -1688,6 +2074,8 @@ function theme_for_level(level)
 		return THEME.VOLCANA
 	elseif level == TEMPLE_LEVEL then
 		return THEME.TEMPLE
+	elseif level == ICE_LEVEL then
+		return THEME.ICE_CAVES
 	elseif level == SUNKEN_LEVEL then
 		return THEME.SUNKEN_CITY
 	end
@@ -1705,6 +2093,8 @@ function world_for_level(level)
 		return 2
 	elseif level == TEMPLE_LEVEL then
 		return 4
+	elseif level == ICE_LEVEL then
+		return 5
 	elseif level == SUNKEN_LEVEL then
 		return 7
 	end
@@ -1716,7 +2106,7 @@ set_callback(function ()
 
 	players[1].inventory.bombs = initial_bombs
 	players[1].inventory.ropes = initial_ropes
-	if players[1]:get_name() == "Roffy D. Sloth" then
+	if players[1]:get_name() == "Roffy D. Sloth" or level == ICE_LEVEL then
 		players[1].health = 1
 	else
 		players[1].health = 2
@@ -1836,6 +2226,8 @@ function clear_variables()
 	volcana_sign = nil
 	temple_door = nil
 	temple_sign = nil
+	ice_door = nil
+	ice_sign = nil
 	sunken_door = nil
 	sunken_sign = nil
 	continue_door = nil
@@ -1844,10 +2236,14 @@ function clear_variables()
 	easy_sign = nil
 	normal_sign = nil
 	hardcore_sign = nil
+	stats_sign = nil
+	legacy_stats_sign = nil
 	tunnel_x = nil
 	tunnel_y = nil
 	tunnel_layer = nil
 	tunnel = nil
+	show_stats = false
+	show_legacy_stats = false
 	dead_ana_pls_kill = nil
 	
 	player_near_easy_sign = false
@@ -1863,6 +2259,9 @@ function clear_variables()
 	telescope_was_activated = nil
 	telescope_activated_time = nil
 	telescope_previous_zoom = nil
+	
+	tvs = {}
+	button_prompts_hidden = false
 end
 
 set_callback(function()
@@ -2018,10 +2417,12 @@ end
 function format_time(frames)
     local seconds = round(frames / 60, 3)
     local minutes = math.floor(seconds / 60)
-    local seconds_text = seconds < 10 and '0' or ''
-    local minutes_text = minutes < 10 and '0' or ''
-
-    return minutes_text .. tostring(minutes) .. ':' .. seconds_text .. tostring(seconds % 60)
+	local hours = math.floor(minutes / 60)
+    local seconds_text = seconds % 60 < 10 and '0' or ''
+    local minutes_text = minutes % 60 < 10 and '0' or ''
+	local hours_prefix = hours < 10 and '0' or ''
+	local hours_text = hours > 0 and f'{hours_prefix}{hours}:' or ''
+    return hours_text .. minutes_text .. tostring(minutes % 60) .. ':' .. seconds_text .. string.format("%.3f", seconds % 60)
 end
 
 -----------------------
@@ -2043,7 +2444,327 @@ set_callback(function(ctx)
 	has_seen_base_camp = false
 end, ON.TITLE)
 
-local image, imagewidth, imageheight = create_image('jpt.png')
+local banner_texture_definition = TextureDefinition.new()
+banner_texture_definition.texture_path = "banner.png"
+banner_texture_definition.width = 540
+banner_texture_definition.height = 118
+banner_texture_definition.tile_width = 540
+banner_texture_definition.tile_height = 118
+banner_texture_definition.sub_image_offset_x = 0
+banner_texture_definition.sub_image_offset_y = 0
+banner_texture_definition.sub_image_width = 540
+banner_texture_definition.sub_image_height = 118
+local banner_texture = define_texture(banner_texture_definition)
+
+-- Stats page
+set_callback(function(ctx)
+	if not show_stats then return end
+	local color = Color:white()
+	local fontsize = 0.0009
+	local titlesize = 0.0012
+	local w = 1.9
+	local h = 1.8
+	local bannerw = .5
+	local bannerh = .2
+	local bannery = .7
+	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_BACK_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
+	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_PAGEFLIP_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
+	ctx:draw_screen_texture(banner_texture, 0, 0, -bannerw/2, bannery + bannerh/2, bannerw/2, bannery - bannerh/2, color)
+		
+	local stats = show_legacy_stats and legacy_stats_for_difficulty(journal_page) or stats_for_difficulty(journal_page)
+	local hardcore_stats = show_legacy_stats and legacy_hardcore_stats_for_difficulty(journal_page) or hardcore_stats_for_difficulty(journal_page)
+	
+	local stat_texts = {}
+	local hardcore_stat_texts = {}
+	function add_stat(text)
+		stat_texts[#stat_texts+1] = text
+	end
+	function add_hardcore_stat(text)
+		hardcore_stat_texts[#hardcore_stat_texts+1] = text
+	end
+	if stats.completions > 0 then
+		add_stat(f'Completions: {stats.completions}')
+		local empty_stats = 0
+		if journal_page ~= DIFFICULTY.EASY and stats.max_idol_completions > 0 then
+			add_stat(f'All idol completions: {stats.max_idol_completions}')
+		else
+			empty_stats = empty_stats + 1
+		end
+		if stats.deathless_completions > 0 then
+			add_stat(f'Deathless completions: {stats.deathless_completions}')
+		else
+			empty_stats = empty_stats + 1
+		end
+		for i=1,empty_stats do
+			add_stat("")
+		end
+		add_stat("")
+		add_stat("")
+		add_stat("PBs:")
+		local idol_text = ''
+		if journal_page ~= DIFFICULTY.EASY and stats.best_time_idol_count == 1 then
+			idol_text = '1 idol, '
+		elseif journal_page ~= DIFFICULTY.EASY and stats.best_time_idol_count > 0 then
+			idol_text = f'{stats.best_time_idol_count} idols, '
+		end
+		local deaths_text = '1 death'
+		if stats.best_time_death_count > 1 then
+			deaths_text = f'{stats.best_time_death_count} deaths'
+		elseif stats.best_time_death_count == 0 then
+			deaths_text = f'deathless'
+		end
+		add_stat(f'Best time: {format_time(stats.best_time)} ({idol_text}{deaths_text})')
+		if journal_page ~= DIFFICULTY.EASY and stats.max_idol_completions > 0 then
+			add_stat(f'All idols: {format_time(stats.max_idol_best_time)}')
+		end
+		if stats.deathless_completions > 0 then
+			add_stat(f'Deathless: {format_time(stats.least_deaths_completion_time)}')
+		else
+			add_stat(f'Least deaths: {stats.least_deaths_completion} ({format_time(stats.least_deaths_completion_time)})')
+		end
+	elseif stats.best_level then
+		add_stat(f'PB: {title_of_level(stats.best_level)}')
+	else
+		add_stat("PB: N/A")
+	end
+	if hardcore_stats.completions > 0 then
+		add_hardcore_stat(f'Completions: {hardcore_stats.completions}')
+		if journal_page ~= DIFFICULTY.EASY and hardcore_stats.max_idol_completions > 0 then
+			add_hardcore_stat(f'All idol completions: {hardcore_stats.max_idol_completions}')
+		else
+			add_hardcore_stat("")
+		end
+		add_hardcore_stat("")
+		add_hardcore_stat("")
+		add_hardcore_stat("")
+		add_hardcore_stat("PBs:")
+		local idol_text = ''
+		if journal_page ~= DIFFICULTY.EASY and hardcore_stats.best_time_idol_count == 1 then
+			idol_text = ' (1 idol)'
+		elseif journal_page ~= DIFFICULTY.EASY and hardcore_stats.best_time_idol_count > 0 then
+			idol_text = f' ({hardcore_stats.best_time_idol_count} idols)'
+		end
+		add_hardcore_stat(f'Best time: {format_time(hardcore_stats.best_time)}{idol_text}')
+		if journal_page ~= DIFFICULTY.EASY and hardcore_stats.max_idol_completions > 0 then
+			add_hardcore_stat(f'All idols: {format_time(hardcore_stats.max_idol_best_time)}')
+		end
+	elseif hardcore_stats.best_level then
+		add_hardcore_stat(f'PB: {title_of_level(hardcore_stats.best_level)}')
+	else
+		add_hardcore_stat("PB: N/A")
+	end
+		
+	local starttexty = .5
+	local statstexty = starttexty
+	local hardcoretexty = starttexty
+	local statstextx = -.65
+	local hardcoretextx = .1
+	local _, textheight = ctx:draw_text_size("TestText,", fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
+	for _, text in ipairs(stat_texts) do
+		local t_color = rgba(0, 0, 36, 230)
+--		local tw, th = ctx:draw_text_size(text, fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
+		ctx:draw_text(text, statstextx, statstexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
+		statstexty = statstexty + textheight - .04
+	end
+	for _, text in ipairs(hardcore_stat_texts) do
+		local t_color = rgba(0, 0, 36, 230)
+	--	local tw, th = ctx:draw_text_size(text, fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
+		ctx:draw_text(text, hardcoretextx, hardcoretexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
+		hardcoretexty = hardcoretexty + textheight - .04
+	end
+	
+	local stats_title = "STATS"
+	if journal_page == DIFFICULTY.EASY then
+		stats_title = "EASY"
+	elseif journal_page == DIFFICULTY.HARD then
+		stats_title = "HARD"
+	else
+		stats_title = "STATS"
+	end
+	local stats_title_color = rgba(255,255,255,255)
+--	local stats_title_width, stats_title_height = ctx:draw_text_size(100, stats_title)
+--	ctx:draw_text(-stats_title_width / 2, .75, 100, stats_title, stats_title_color)
+	ctx:draw_text(stats_title, 0, .71, titlesize, titlesize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
+	ctx:draw_text("Hardcore", -statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.RIGHT, VANILLA_FONT_STYLE.ITALIC)
+	if show_legacy_stats then
+		ctx:draw_text("Legacy", statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
+	end
+	
+	local buttonsx = .82
+	local buttonssize = .0023
+	if journal_page ~= DIFFICULTY.EASY then
+		ctx:draw_text("\u{8B}", -buttonsx, 0, buttonssize, buttonssize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
+	end
+	if journal_page ~= DIFFICULTY.HARD then
+		ctx:draw_text("\u{8C}", buttonsx, 0, buttonssize, buttonssize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
+	end
+end, ON.RENDER_POST_HUD)
+
+-- Win state
+set_callback(function(ctx)
+	if not win then return end
+	local color = Color:white()
+	local fontsize = 0.0009
+	local titlesize = 0.0012
+	local w = 1.9
+	local h = 1.8
+	local bannerw = .5
+	local bannerh = .2
+	local bannery = .7
+	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_BASE_SKYNIGHT_0, 0, 0, -3, 3, 3, -3, Color.black())
+	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_BACK_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
+	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_PAGEFLIP_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
+	ctx:draw_screen_texture(banner_texture, 0, 0, -bannerw/2, bannery + bannerh/2, bannerw/2, bannery - bannerh/2, color)
+		
+	local stats = current_stats()
+	local hardcore_stats = current_hardcore_stats()
+	
+	local stat_texts = {}
+	local pb_stat_texts = {}
+	function add_stat(text)
+		stat_texts[#stat_texts+1] = text
+	end
+	function add_pb_stat(text)
+		pb_stat_texts[#pb_stat_texts+1] = text
+	end
+	
+	add_stat("Congratulations!")
+	if current_difficulty == DIFFICULTY.EASY then
+		add_stat('Easy completion')
+	elseif current_difficulty == DIFFICULTY.HARD then
+		add_stat('Hard completion')
+	else
+		add_stat("")
+	end
+	add_stat("")
+	add_stat("")
+	
+	local empty_stats = 0
+	if completion_deaths_new_pb or completion_time_new_pb then
+		add_stat("New PB!!")
+	else
+		empty_stats = empty_stats + 1
+	end
+	add_stat(f'Time: {format_time(completion_time)}')
+	if not hardcore_enabled then
+		if completion_deaths == 0 then
+			add_stat('Deathless!')
+		else
+			add_stat(f'Deaths: {completion_deaths}')
+		end
+	else
+		empty_stats = empty_stats + 1
+	end
+	local all_idols_text = ""
+	if completion_idols == max_level + 1 then
+		all_idols_text = " (All Idols!)"
+	end
+	if current_difficulty ~= DIFFICULTY.EASY and completion_idols > 0 then
+		add_stat(f'Idols: {completion_idols}{all_idols_text}')
+	else
+		empty_stats = empty_stats + 1
+	end
+	for i=1,empty_stats do
+		add_stat("")
+	end
+	add_stat("")
+	add_stat("")
+	
+	empty_stats = 0
+	add_pb_stat(f'Completions: {stats.completions}')
+	if hardcore_enabled then
+		add_pb_stat(f'Hardcore completions: {stats_hardcore.completions}')
+	elseif stats.deathless_completions and stats.deathless_completions > 0 then
+		add_pb_stat(f'Deathless completions: {stats.deathless_completions}')
+	else
+		empty_stats = empty_stats + 1
+	end
+	if current_difficulty ~= DIFFICULTY.EASY and hardcore_enabled and stats_hardcore.max_idol_completions and stats_hardcore.max_idol_completions > 0 then
+		add_pb_stat(f'All idol hardcore completions: {stats_hardcore.max_idol_completions}')
+	elseif current_difficulty ~= DIFFICULTY.EASY and not hardcore_enabled and stats.max_idol_completions and stats.max_idol_completions > 0 then
+		add_pb_stat(f'All idol completions: {stats.max_idol_completions}')
+	else
+		empty_stats = empty_stats + 1
+	end
+	
+	for i=1,empty_stats do
+		add_pb_stat("")
+	end
+	
+	add_pb_stat("")
+	
+	add_pb_stat("PBs:")
+	local time_pb_text = ''
+	if completion_time_new_pb then
+		time_pb_text = ' (New PB!)'
+	end
+	local deaths_pb_text = ''
+	if completion_deaths_new_pb then
+		deaths_pb_text = ' (New PB!)'
+	end
+	empty_stats = 0
+	if hardcore_enabled then
+		add_pb_stat(f'Fastest time: {format_time(stats.best_time)}{time_pb_text}')
+		add_pb_stat(f'Fastest hardcore time: {format_time(stats_hardcore.best_time)}{time_pb_text}')
+		
+		if current_difficulty ~= DIFFICULTY.EASY and stats_hardcore.max_idol_best_time and stats_hardcore.max_idol_best_time > 0 then
+			add_pb_stat(f'Fastest hardcore all idols: {format_time(stats_hardcore.max_idol_best_time)}')
+		else
+			empty_stats = empty_stats + 1
+		end
+		empty_stats = empty_stats + 1
+	else
+		add_pb_stat(f'Fastest time: {format_time(stats.best_time)}{time_pb_text}')
+		add_pb_stat(f'Least deaths: {stats.least_deaths_completion}{deaths_pb_text}')
+		
+		if stats.deathless_completions and stats.deathless_completions > 0 and stats.least_deaths_completion_time and stats.least_deaths_completion_time > 0 then
+			add_pb_stat(f'Fastest deathless: {format_time(stats.least_deaths_completion_time)}')
+		else
+			empty_stats = empty_stats + 1
+		end
+		
+		if current_difficulty ~= DIFFICULTY.EASY and stats.max_idol_best_time and stats.max_idol_best_time > 0 then
+			add_pb_stat(f'Fastest all idols: {format_time(stats.max_idol_best_time)}')
+		else
+			empty_stats = empty_stats + 1
+		end
+	end	
+	
+	for i=1,empty_stats do
+		add_pb_stat("")
+	end
+	add_pb_stat("")
+	add_pb_stat("")
+	add_pb_stat("")
+	add_pb_stat("Continue \u{83}")
+		
+	local starttexty = .5
+	local statstexty = starttexty
+	local hardcoretexty = starttexty
+	local statstextx = -.65
+	local hardcoretextx = .1
+	local _, textheight = ctx:draw_text_size("TestText,", fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
+	for _, text in ipairs(stat_texts) do
+		local t_color = rgba(0, 0, 36, 230)
+--		local tw, th = ctx:draw_text_size(text, fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
+		ctx:draw_text(text, statstextx, statstexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
+		statstexty = statstexty + textheight - .04
+	end
+	for _, text in ipairs(pb_stat_texts) do
+		local t_color = rgba(0, 0, 36, 230)
+	--	local tw, th = ctx:draw_text_size(text, fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
+		ctx:draw_text(text, hardcoretextx, hardcoretexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
+		hardcoretexty = hardcoretexty + textheight - .04
+	end
+	
+	local stats_title = "VICTORY"
+	local stats_title_color = rgba(255,255,255,255)
+	ctx:draw_text(stats_title, 0, .71, titlesize, titlesize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
+	if hardcore_enabled then
+		ctx:draw_text("Hardcore", statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.RIGHT, VANILLA_FONT_STYLE.ITALIC)
+	end
+end, ON.RENDER_POST_HUD)
+
 set_callback(function (ctx)
     local text_color = rgba(255, 255, 255, 195)
     local w = 1.3
@@ -2058,85 +2779,7 @@ set_callback(function (ctx)
 	local stats_hardcore = current_hardcore_stats()
 	
     if win then
-		-- Draw a black screen to cover the game.
-        ctx:draw_rect_filled(-1, 1, 1, -1, 0, rgba(0, 0, 0, 255))
-		
-		-- Draw a journal page that the text will be rendered on top of.
-		ctx:draw_image_rotated(image, x - w / 2, y + h / 2, x+w/2, y-h/2, 0, 0, 1, 1, 0xffffffff, -math.pi/2, 0, 0)
-		local texts = {}
-		texts[#texts+1] = 'Congratulations!'
-		if current_difficulty == DIFFICULTY.EASY then
-			texts[#texts+1] = 'Easy completion'
-		elseif current_difficulty == DIFFICULTY.HARD then
-			texts[#texts+1] = 'Hard completion'
-		end
-		if hardcore_enabled then
-			texts[#texts+1] = 'Hardcore Victory!'
-		end
-		texts[#texts+1] = ''
-		if completion_deaths_new_pb or completion_time_new_pb then
-			texts[#texts+1] = 'New PB!!'
-		end
-		texts[#texts+1] = f'Time: {format_time(completion_time)}'
-		if not hardcore_enabled then
-			texts[#texts+1] = f'Deaths: {completion_deaths}'
-		end
-		local all_idols_text = ""
-		if completion_idols == max_level + 1 then
-			all_idols_text = " (All Idols!)"
-		end
-		if current_difficulty ~= DIFFICULTY.EASY and completion_idols > 0 then
-			texts[#texts+1] = f'Idols: {completion_idols}{all_idols_text}'
-		end
-		texts[#texts+1] = ''
-		texts[#texts+1] = ''
-		texts[#texts+1] = 'PBs:'
-		local time_pb_text = ''
-		if completion_time_new_pb then
-			time_pb_text = ' (New PB!)'
-		end
-		local deaths_pb_text = ''
-		if completion_deaths_new_pb then
-			deaths_pb_text = ' (New PB!)'
-		end
-		if hardcore_enabled then
-			texts[#texts+1] = f'Fastest time: {format_time(stats_hardcore.best_time)}{time_pb_text}'
-		
-			if current_difficulty ~= DIFFICULTY.EASY and stats_hardcore.max_idol_best_time and stats_hardcore.max_idol_best_time > 0 then
-				texts[#texts+1] = f'Fastest all idols: {format_time(stats_hardcore.max_idol_best_time)}'
-			end
-		else
-			texts[#texts+1] = f'Fastest time: {format_time(stats.best_time)}{time_pb_text}'
-			texts[#texts+1] = f'Least deaths: {stats.least_deaths_completion}{deaths_pb_text}'
-			
-			if current_difficulty ~= DIFFICULTY.EASY and stats.max_idol_best_time and stats.max_idol_best_time > 0 then
-				texts[#texts+1] = f'Fastest all idols: {format_time(stats.max_idol_best_time)}'
-			end
-		end
-		if not hardcore_enabled and stats.deathless_completions and stats.deathless_completions > 0 and stats.least_deaths_completion_time and stats.least_deaths_completion_time > 0 then
-			texts[#texts+1] = f'Fastest deathless: {format_time(stats.least_deaths_completion_time)}'
-		end
-		texts[#texts+1] = ''
-		texts[#texts+1] = f'Completions: {stats.completions}'
-		if hardcore_enabled then
-			texts[#texts+1] = f'Hardcore completions: {stats_hardcore.completions}'
-		elseif stats.deathless_completions and stats.deathless_completions > 0 then
-			texts[#texts+1] = f'Deathless completions: {stats.deathless_completions}'
-		end
-		if current_difficulty ~= DIFFICULTY.EASY and hardcore_enabled and stats_hardcore.max_idol_completions and stats_hardcore.max_idol_completions > 0 then
-			texts[#texts+1] = f'All idol hardcore completions: {stats_hardcore.max_idol_completions}'
-		elseif current_difficulty ~= DIFFICULTY.EASY and not hardcore_enabled and stats.max_idol_completions and stats.max_idol_completions > 0 then
-			texts[#texts+1] = f'All idol completions: {stats.max_idol_completions}'
-		end
-		
-		local texty = .79
-		for i = 1,#texts do
-			local t_color = rgba(0, 0, 36, 230)
-			local text = texts[i]
-			local tw, th = draw_text_size(85, text)
-			ctx:draw_text(-.285, texty, 85, text, t_color)
-			texty = texty + th
-		end
+		-- Do not render, showing stats in RENDER_POST_HUD
 	elseif state.theme == THEME.BASE_CAMP then
 		local texts = {}
 		if hardcore_enabled and current_difficulty == DIFFICULTY.EASY then
@@ -2214,28 +2857,6 @@ set_callback(function (ctx)
 			texts[#texts+1] = f'Idols: {idols}'
 		end
 		
-		local pb_text
-		local wins_text = ""
-		if stats_hardcore.completions > 0 and format_time(stats_hardcore.best_time) then
-			local best_idol_text = ""
-			if current_difficulty ~= DIFFICULTY.EASY then
-				if stats_hardcore.best_time_idol_count == 1 then
-					best_idol_text = " (1 idol)"
-				elseif stats_hardcore.best_time_idol_count > 1 then
-					best_idol_text = f' ({stats_hardcore.best_time_idol_count} idols)'
-				end
-			end
-			pb_text = f'{format_time(stats_hardcore.best_time)}{best_idol_text}'
-			wins_text = f'Wins: {stats_hardcore.completions}  '
-		elseif stats_hardcore.best_level then
-			pb_text = title_of_level(stats_hardcore.best_level)
-		else
-			pb_text = 'N/A'
-		end
-		texts[#texts+1] = f'{wins_text}PB: {pb_text}'
-		if current_difficulty ~= DIFFICULTY.EASY and stats_hardcore.max_idol_completions > 0 then
-			texts[#texts+1] = f'All idols wins: {stats_hardcore.max_idol_completions} PB: {format_time(stats_hardcore.max_idol_best_time)}'
-		end
 		
 		local texty = -0.935
 		for i = #texts,1,-1 do
@@ -2252,34 +2873,11 @@ set_callback(function (ctx)
 			texts[#texts+1] = 'Hard mode'
 		end
 		
-		local pb_text
-		local wins_text = ""
 		local idols_text = ""
-		if stats.completions > 0 and format_time(stats.best_time) then
-			local best_idol_text = ""
-			if current_difficulty ~= DIFFICULTY.EASY then
-				if stats.best_time_idol_count == 1 then
-					best_idol_text = f' (1 idol)'
-				elseif stats.best_time_idol_count > 1 then
-					best_idol_text = f' ({stats.best_time_idol_count} idols)'
-				end
-			end
-			pb_text = f'{format_time(stats.best_time)}{best_idol_text}'
-			wins_text = f'Wins: {stats.completions}  '
-		elseif stats.best_level then
-			pb_text = title_of_level(stats.best_level)
-		else
-			pb_text = 'N/A'
-		end
 		if idols > 0 then
 			idols_text = f'     Idols: {idols}'
 		end
 		texts[#texts+1] = f'Deaths: {attempts - 1}{idols_text}'
-		texts[#texts+1] = f'{wins_text}PB: {pb_text}'
-		local message_offset = 0
-		if current_difficulty ~= DIFFICULTY.EASY and stats.max_idol_completions > 0 then
-			texts[#texts+1] = f'All idol wins: {stats.max_idol_completions} PB: {format_time(stats.max_idol_best_time)}'
-		end
 		
 		local texty = -0.935
 		for i = #texts,1,-1 do
@@ -2323,6 +2921,43 @@ set_callback(function (ctx)
 			normal_stats.deathless_completions = load_data.deathless_completions or 0
 			normal_stats.least_deaths_completion = load_data.least_deaths_completion
 			normal_stats.least_deaths_completion_time = load_data.least_deaths_completion_time
+		elseif load_version == '1.3' then
+			if load_data.stats then
+				legacy_normal_stats = load_data.stats
+				if legacy_normal_stats.best_level == ICE_LEVEL then
+					legacy_normal_stats.best_level = SUNKEN_LEVEL
+				end 
+			end
+			if load_data.easy_stats then
+				legacy_easy_stats = load_data.easy_stats
+				if legacy_easy_stats.best_level == ICE_LEVEL then
+					legacy_easy_stats.best_level = SUNKEN_LEVEL
+				end 
+			end
+			if load_data.hard_stats then
+				legacy_hard_stats = load_data.hard_stats
+				if legacy_hard_stats.best_level == ICE_LEVEL then
+					legacy_hard_stats.best_level = SUNKEN_LEVEL
+				end 
+			end
+			if load_data.hardcore_stats then
+				legacy_hardcore_stats = load_data.hardcore_stats
+				if legacy_hardcore_stats.best_level == ICE_LEVEL then
+					legacy_hardcore_stats.best_level = SUNKEN_LEVEL
+				end 
+			end
+			if load_data.hardcore_stats_easy then
+				legacy_hardcore_stats_easy = load_data.hardcore_stats_easy
+				if legacy_hardcore_stats_easy.best_level == ICE_LEVEL then
+					legacy_hardcore_stats_easy.best_level = SUNKEN_LEVEL
+				end 
+			end
+			if load_data.hardcore_stats_hard then
+				legacy_hardcore_stats_hard = load_data.hardcore_stats_hard
+				if legacy_hardcore_stats_hard.best_level == ICE_LEVEL then
+					legacy_hardcore_stats_hard.best_level = SUNKEN_LEVEL
+				end 
+			end
 		else
 			if load_data.stats then
 				normal_stats = load_data.stats
@@ -2332,6 +2967,36 @@ set_callback(function (ctx)
 			end
 			if load_data.hard_stats then
 				hard_stats = load_data.hard_stats
+			end
+			if load_data.legacy_stats then
+				legacy_normal_stats = load_data.legacy_stats
+			end
+			if load_data.legacy_easy_stats then
+				legacy_easy_stats = load_data.legacy_easy_stats
+			end
+			if load_data.legacy_hard_stats then
+				legacy_hard_stats = load_data.legacy_hard_stats
+			end
+			
+			
+			if load_data.hardcore_stats then
+				hardcore_stats = load_data.hardcore_stats
+			end
+			if load_data.hardcore_stats_easy then
+				hardcore_stats_easy = load_data.hardcore_stats_easy
+			end
+			if load_data.hardcore_stats_hard then
+				hardcore_stats_hard = load_data.hardcore_stats_hard
+			end
+			
+			if load_data.legacy_hardcore_stats then
+				legacy_hardcore_stats = load_data.legacy_hardcore_stats
+			end
+			if load_data.legacy_hardcore_stats_easy then
+				legacy_hardcore_stats_easy = load_data.legacy_hardcore_stats_easy
+			end
+			if load_data.legacy_hardcore_stats_hard then
+				legacy_hardcore_stats_hard = load_data.legacy_hardcore_stats_hard
 			end
 		end
 		local idol_levels = load_data.idol_levels
@@ -2345,6 +3010,9 @@ set_callback(function (ctx)
 		if idol_levels.temple then
 			saved_idols_collected[TEMPLE_LEVEL] = true
 		end
+		if idol_levels.ice then
+			saved_idols_collected[ICE_LEVEL] = true
+		end
 		if idol_levels.sunken then
 			saved_idols_collected[SUNKEN_LEVEL] = true
 		end
@@ -2352,15 +3020,6 @@ set_callback(function (ctx)
 		total_idols = load_data.total_idols
 		hardcore_enabled = load_data.hardcore_enabled
 		hardcore_previously_enabled = load_data.hpe
-		if load_data.hardcore_stats then
-			hardcore_stats = load_data.hardcore_stats
-		end
-		if load_data.hardcore_stats_easy then
-			hardcore_stats_easy = load_data.hardcore_stats_easy
-		end
-		if load_data.hardcore_stats_hard then
-			hardcore_stats_hard = load_data.hardcore_stats_hard
-		end
 		
 		function load_saved_run_data(saved_run, saved_run_data)
 			saved_run.has_saved_run = saved_run_data.has_saved_run or not load_version
@@ -2378,6 +3037,9 @@ set_callback(function (ctx)
 			end
 			if saved_data_idol_levels.temple then
 				saved_idol_levels[TEMPLE_LEVEL] = true
+			end
+			if saved_data_idol_levels.ice then
+				saved_idol_levels[ICE_LEVEL] = true
 			end
 			if saved_data_idol_levels.sunken then
 				saved_idol_levels[SUNKEN_LEVEL] = true
@@ -2406,6 +3068,7 @@ function force_save(ctx)
 		dwelling = idols_collected[DWELLING_LEVEL],
 		volcana = idols_collected[VOLCANA_LEVEL],
 		temple = idols_collected[TEMPLE_LEVEL],
+		ice = idols_collected[ICE_LEVEL],
 		sunken = idols_collected[SUNKEN_LEVEL],
 	}
 	
@@ -2415,6 +3078,7 @@ function force_save(ctx)
 			dwelling = saved_run.saved_run_idols_collected[DWELLING_LEVEL],
 			volcana = saved_run.saved_run_idols_collected[VOLCANA_LEVEL],
 			temple = saved_run.saved_run_idols_collected[TEMPLE_LEVEL],
+			ice = saved_run.saved_run_idols_collected[ICE_LEVEL],
 			sunken = saved_run.saved_run_idols_collected[SUNKEN_LEVEL],
 		}
 		local saved_run_data = {
@@ -2431,7 +3095,7 @@ function force_save(ctx)
 	local easy_saved_run_data = saved_run_datar(easy_saved_run)
 	local hard_saved_run_data = saved_run_datar(hard_saved_run)
     local save_data = {
-		version = '1.3',
+		version = '1.5',
 		idol_levels = idol_levels,
 		total_idols = total_idols,
 		saved_run_data = normal_saved_run_data,
@@ -2440,6 +3104,9 @@ function force_save(ctx)
 		stats = normal_stats,
 		easy_stats = easy_stats,
 		hard_stats = hard_stats,
+		legacy_stats = legacy_normal_stats,
+		legacy_easy_stats = legacy_easy_stats,
+		legacy_hard_stats = legacy_hard_stats,
 		has_seen_ana_dead = has_seen_ana_dead,
 		hardcore_enabled = hardcore_enabled,
 		difficulty = current_difficulty,
@@ -2447,6 +3114,9 @@ function force_save(ctx)
 		hardcore_stats = hardcore_stats,
 		hardcore_stats_easy = hardcore_stats_easy,
 		hardcore_stats_hard = hardcore_stats_hard,
+		legacy_hardcore_stats = legacy_hardcore_stats,
+		legacy_hardcore_stats_easy = legacy_hardcore_stats_easy,
+		legacy_hardcore_stats_hard = legacy_hardcore_stats_hard,
     }
 
     ctx:save(json.encode(save_data))

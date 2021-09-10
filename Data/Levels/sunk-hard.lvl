@@ -50,6 +50,8 @@
 \?entrance							E
 \?exit								e
 \?falling_platform					p
+\?ladder							L
+\?ladder_plat						P
 \?conveyorbelt_left					<
 \?conveyorbelt_right				>
 \?spikeball_trap					s

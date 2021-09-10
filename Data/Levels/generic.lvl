@@ -8,41 +8,41 @@
 
 \?empty						0
 \?floor						1
-\?floor%50					2	// 50% chance of floor, 50% chance of empty
-\?floor_hard				X	// Indestructible ("hard") floor
-\?floor_hard%50%floor		Y	// 50% chance of hard floor, 50% chance of regular floor
-\?adjacent_floor			Z	// Hard floor or empty depending on whether this leads to another second layer room
-\?ladder					L
-\?ladder_plat				P	// Ladder with platform across it
-\?door2						D	// Door to other Layer
-\?locked_door				/	// Locked door to other Layer
-\?stone_floor				+
-\?tomb_floor				G
-\?cursed_pot				u
+//\?floor%50					2	// 50% chance of floor, 50% chance of empty
+//\?floor_hard				X	// Indestructible ("hard") floor
+//\?floor_hard%50%floor		Y	// 50% chance of hard floor, 50% chance of regular floor
+//\?adjacent_floor			Z	// Hard floor or empty depending on whether this leads to another second layer room
+//\?ladder					L
+//\?ladder_plat				P	// Ladder with platform across it
+//\?door2						D	// Door to other Layer
+//\?locked_door				/	// Locked door to other Layer
+//\?stone_floor				+
+//\?tomb_floor				G
+//\?cursed_pot				u
 
-\?treasure					t	// Gold (30%), gem (30%), treasure chest (20%), crate (10%), bones/pot (5%), or nothing (5%)
-\?litwalltorch				O
-\?haunted_corpse			7
+//\?treasure					t	// Gold (30%), gem (30%), treasure chest (20%), crate (10%), bones/pot (5%), or nothing (5%)
+//\?litwalltorch				O
+//\?haunted_corpse			7
 
-\?altar						x	// Each side of the altar
-\?vault_wall				|	// Vault wall
-\?bone_block				f
+//\?altar						x	// Each side of the altar
+//\?vault_wall				|	// Vault wall
+//\?bone_block				f
 
-\?shop_sign					K
-\?shop_door					k
-\?lamp_hang					l
-\?shop_wall					.
-\?shop_wall%50				;
-\?shop_woodwall				:
-\?wanted_poster				W
-\?shopkeeper				$
-\?die						%
-\?merchant					#
-\?cavemanshopkeeper			&
-\?shop_item					S	// Shop items placement / Dice shop prize dispenser
-\?sleeping_hiredhand		\
-\?forcefield				?
-\?forcefield_top			'
+//\?shop_sign					K
+//\?shop_door					k
+//\?lamp_hang					l
+//\?shop_wall					.
+//\?shop_wall%50				;
+//\?shop_woodwall				:
+//\?wanted_poster				W
+//\?shopkeeper				$
+//\?die						%
+//\?merchant					#
+//\?cavemanshopkeeper			&
+//\?shop_item					S	// Shop items placement / Dice shop prize dispenser
+//\?sleeping_hiredhand		\
+//\?forcefield				?
+//\?forcefield_top			'
 
 \?thief						J
 
