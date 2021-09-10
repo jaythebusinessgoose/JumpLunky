@@ -1,5 +1,5 @@
 meta.name = 'Jumplunky'
-meta.version = '1.3'
+meta.version = '1.4'
 meta.description = 'Challenging platforming puzzles'
 meta.author = 'JayTheBusinessGoose'
 
@@ -811,8 +811,21 @@ set_pre_tile_code_callback(function(x, y, layer)
 	return true
 end, "telescope")
 
+-- Telescope facing left.
+define_tile_code("telescope_left")
+set_pre_tile_code_callback(function(x, y, layer)
+	local new_telescope = spawn_entity(ENT_TYPE.ITEM_TELESCOPE, x, y, layer, 0, 0)
+	telescopes[#telescopes + 1] = new_telescope
+	local telescope_entity = get_entity(new_telescope)
+	-- Disable the telescope's default interaction because it interferes with the zooming and panning we want to do
+	-- when interacting with the telescope.
+	telescope_entity.flags = clr_flag(telescope_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	return true
+end, "telescope_left")
+
 local telescope_activated = false 
 local telescope_was_activated = nil
+local telescope_activated_time = nil
 local telescope_previous_zoom = nil
 set_callback(function() 
 	if #players < 1 or not telescopes then return end
@@ -823,7 +836,8 @@ set_callback(function()
 		if player.layer == get_entity(telescope).layer and distance(player.uid, telescope) <= 1 and player:is_button_pressed(BUTTON.DOOR) then
 			-- Begin telescope interaction when the door button is pressed within a tile of the telescope.
 			telescope_activated = true
-			telescope_was_activated = true
+			telescope_was_activated = nil
+			telescope_activated_time = state.time_level
 			-- Save the previous zoom level so that we can correct the camera's zoom when exiting the telescope.
 			telescope_previous_zoom = get_zoom_level()
 			-- Do not focus on the player while interacting with the telescope.
@@ -845,16 +859,20 @@ set_callback(function()
 	if telescope_activated then
 		-- Gets a bitwise integer that contains the set of pressed buttons while the input is stolen.
 		local buttons = read_stolen_input(player.uid)
-		-- 3 = bomb
-		if test_flag(buttons, 3) then
+		local telescope_activated_long = telescope_activated_time and state.time_level - telescope_activated_time > 40
+		-- 1 = jump, 2 = whip, 3 = bomb, 4 = rope, 6 = Door
+		if test_flag(buttons, 1) or test_flag(buttons, 2) or test_flag(buttons, 3) or test_flag(buttons, 4) or (telescope_activated_long and test_flag(buttons, 6)) then
 			telescope_activated = false
 			-- Keep track of the time that the telescope was deactivated. This will allow us to enable the player's
 			-- inputs later so that the same input isn't recognized again to cause a bomb to be thrown or another action.
-			telescope_was_activated = state.time_level 
+			telescope_was_activated = state.time_level
+			telescope_activated_time = nil
 			-- Zoom back to the original zoom level.
 			zoom(telescope_previous_zoom)
+			telescope_previous_zoom = nil
 			-- Make the camera follow the player again.
 			state.camera.focused_entity_uid = player.uid
+			return
 		end
 		
 		-- Calculate the top and bottom of the level to stop the camera from moving.
@@ -1842,7 +1860,8 @@ function clear_variables()
 	end
 	telescopes = {}
 	telescope_activated = false 
-	telescope_was_activated = -1
+	telescope_was_activated = nil
+	telescope_activated_time = nil
 	telescope_previous_zoom = nil
 end
 
