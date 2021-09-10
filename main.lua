@@ -605,21 +605,43 @@ function hardcore_available()
 	return unique_idols_collected() == #default_levels
 end
 
+
 -- STATS
-local stats_opened_time = nil
 local stats_closed_time = nil
 local last_left_input = nil
 local last_right_input = nil
+local stats_open_button = nil
+local stats_open_button_closed = false
+
+set_journal_enabled(false)
 set_callback(function()
-	if state.theme ~= THEME.BASE_CAMP then return end
+	if #players < 1 then return end
+	local player = players[1]
+	local buttons = read_input(player.uid)
+	-- 8 = Journal
+	if test_flag(buttons, 8) and not show_stats then
+		show_stats = true
+		show_legacy_stats = false
+		steal_input(player.uid)
+		state.level_flags = clr_flag(state.level_flags, 20)
+		journal_page = current_difficulty
+		play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
+		stats_open_button = 8
+		stats_open_button_closed = false
+	end
+end, ON.GAMEFRAME)
+
+set_callback(function()
 	if #players < 1 then return end
 	local player = players[1]
 	
 	-- Show the stats journal when pressing the door button by the sign.
-	if player:is_button_pressed(BUTTON.DOOR) and player.layer == get_entity(stats_sign).layer and distance(player.uid, stats_sign) <= .5 then
-		show_stats = true
+	if player:is_button_pressed(BUTTON.DOOR) and 
+			stats_sign and get_entity(stats_sign) and
+			player.layer == get_entity(stats_sign).layer and 
+			distance(player.uid, stats_sign) <= .5 then
+			show_stats = true
 		show_legacy_stats = false
-		stats_opened_time = state.time_level
 		-- Do not allow the player to move while showing stats.
 		steal_input(player.uid)
 		-- Disable pausing.
@@ -629,42 +651,59 @@ set_callback(function()
 		-- Hide the prompt so it doesn't show above stats.
 		hide_button_prompts(true)
 		journal_page = current_difficulty
+		stats_open_button = 6
+		stats_open_button_closed = false
+
+		play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
+	end
+
+	-- Show the legacy stats journal when pressing the door button by the sign.
+	if player:is_button_pressed(BUTTON.DOOR) and
+			legacy_stats_sign and 
+			player.layer == get_entity(legacy_stats_sign).layer and
+			distance(player.uid, legacy_stats_sign) <= .5 then
+		show_stats = true
+		show_legacy_stats = true
+		-- Do not allow the player to move while showing stats.
+		steal_input(player.uid)
+		-- Disable pausing.
+		state.level_flags = clr_flag(state.level_flags, 20)
+		-- Cancel speech bubbles so they don't show above stats.
+		cancel_speechbubble()
+		-- Hide the prompt so it doesn't show above stats.
+		hide_button_prompts(true)
+		journal_page = current_difficulty
+		stats_open_button = 6
+		stats_open_button_closed = false
 
 		play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
 	end
 	
-	-- Show the legacy stats journal when pressing the door button by the sign.
-	if player:is_button_pressed(BUTTON.DOOR) and legacy_stats_sign and player.layer == get_entity(legacy_stats_sign).layer and distance(player.uid, legacy_stats_sign) <= .5 then
-		show_stats = true
-		show_legacy_stats = true
-		stats_opened_time = state.time_level
-		-- Do not allow the player to move while showing stats.
-		steal_input(player.uid)
-		-- Disable pausing.
-		state.level_flags = clr_flag(state.level_flags, 20)
-		-- Cancel speech bubbles so they don't show above stats.
-		cancel_speechbubble()
-		-- Hide the prompt so it doesn't show above stats.
-		hide_button_prompts(true)
-		journal_page = current_difficulty
-
-		play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
-	end
 
 	-- Controls while stats journal is opened.
 	if show_stats then
 		-- Gets a bitwise integer that contains the set of pressed buttons while the input is stolen.
 		local buttons = read_stolen_input(player.uid)
-		local stats_opened_long = stats_opened_time and state.time_level - stats_opened_time > 40
-		-- 1 = jump, 2 = whip, 3 = bomb, 4 = rope, 6 = Door
-		if test_flag(buttons, 1) or test_flag(buttons, 2) or test_flag(buttons, 3) or test_flag(buttons, 4) or (stats_opened_long and test_flag(buttons, 6)) then
+		if not stats_open_button_closed and stats_open_button then
+			if not test_flag(buttons, stats_open_button) then
+				stats_open_button_closed = true
+			end
+		end
+		-- 1 = jump, 2 = whip, 3 = bomb, 4 = rope, 6 = Door, 8 = Journal
+		if test_flag(buttons, 1) or
+				test_flag(buttons, 2) or 
+				test_flag(buttons, 3) or 
+				test_flag(buttons, 4) or 
+				((stats_open_button ~= 6 or stats_open_button_closed) and test_flag(buttons, 6) or 
+				((stats_open_button ~= 8 or stats_open_button_closed) and test_flag(buttons, 8))) then
 			show_stats = false
 			-- Keep track of the time that the stats were closed. This will allow us to enable the player's
 			-- inputs later so that the same input isn't recognized again to cause a bomb to be thrown or another action.
 			stats_closed_time = state.time_level
-			stats_opened_time = nil
 			journal_page = DIFFICULTY.NORMAL
 			state.level_flags = set_flag(state.level_flags, 20)
+			stats_open_button = nil
+			stats_open_button_closed = false
 			play_sound(VANILLA_SOUND.UI_JOURNAL_OFF)
 			return
 		end
