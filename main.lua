@@ -322,11 +322,11 @@ set_callback(function (ctx)
 end, ON.PRE_LOAD_LEVEL_FILES)
 
 -- Create a bunch of room templates that can be used in lvl files to create rooms. To create a level
--- larger than 4x5, these must be increased to create more templates. 
+-- larger than 4x6, these must be increased to create more templates. 
 local room_templates = {}
 for x = 0, 3 do
 	local room_templates_x = {}
-	for y = 0, 4 do
+	for y = 0, 5 do
 		local room_template = define_room_template("setroom" .. y .. "_" .. x, ROOM_TEMPLATE_TYPE.NONE)
 		room_templates_x[y] = room_template
 	end
@@ -338,7 +338,9 @@ local buffer_special_template = define_room_template("buffer_special", ROOM_TEMP
 
 -- Returns size of the level in width, height.
 function size_of_level(level)
-	if level == TEMPLE_LEVEL or level == DWELLING_LEVEL then
+	if level == TEMPLE_LEVEL then
+		return 4, 6
+	elseif level == DWELLING_LEVEL then
 		return 4, 5
 	else
 		return 4, 4
@@ -739,6 +741,10 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local ana = get_entity(ana_uid)
 	-- We must kill Ana too, otherwise we can't get the bow she brought to the challenge room. :(
 	ana.health = 0
+	ana.flags = clr_flag(ana.flags, ENT_FLAG.PICKUPABLE)
+	ana.flags = clr_flag(ana.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
+	ana.flags = set_flag(ana.flags, ENT_FLAG.TAKE_NO_DAMAGE)
+	ana.flags = set_flag(ana.flags, ENT_FLAG.DEAD)
 	return true
 end, "ana_spelunky")
 
@@ -791,6 +797,27 @@ local has_completed_sun_challenge = false
 local sun_challenge_toast_shown = 0
 set_callback(function ()
 	if level == SUNKEN_LEVEL then
+		-- This allows us to kill all of the spanws when the challenge is completed or the player dies.
+		function clear_sun_challenge_spawns()
+			local sun_challenge_spawns = get_entities_by_type({ENT_TYPE.MONS_SORCERESS, ENT_TYPE.MONS_VAMPIRE, ENT_TYPE.MONS_WITCHDOCTOR, ENT_TYPE.MONS_NECROMANCER, ENT_TYPE.MONS_REDSKELETON, ENT_TYPE.MONS_BAT, ENT_TYPE.MONS_BEE, ENT_TYPE.MONS_SKELETON, ENT_TYPE.MONS_SNAKE, ENT_TYPE.MONS_SPIDER})
+			for i=1,#sun_challenge_spawns do
+				local spawn = sun_challenge_spawns[i]
+				kill_entity(spawn)
+			end
+		end
+		
+		-- Turns off all generators.
+		function deactivate_generators()
+			for i = 1, #sunchallenge_generators do
+				local generator = sunchallenge_generators[i]
+				generator.on_off = false
+			end
+		end
+		if #players < 1 or players[1].health == 0 then
+			deactivate_generators()
+			clear_sun_challenge_spawns()
+			return
+		end
 		if has_completed_sun_challenge then
 			-- Do nothing, all done.
 		elseif has_activated_sun_challenge then
@@ -799,31 +826,11 @@ set_callback(function ()
 			-- The number of frames since the challenge was started.
 			local time_waiting = state.time_level - sun_challenge_activation_time
 			
-			-- This allows us to kill all of the spanws when the challenge is completed or the player dies.
-			function clear_sun_challenge_spawns()
-				local sun_challenge_spawns = get_entities_by_type({ENT_TYPE.MONS_SORCERESS, ENT_TYPE.MONS_VAMPIRE, ENT_TYPE.MONS_WITCHDOCTOR, ENT_TYPE.MONS_NECROMANCER, ENT_TYPE.MONS_REDSKELETON, ENT_TYPE.MONS_BAT, ENT_TYPE.MONS_BEE, ENT_TYPE.MONS_SKELETON, ENT_TYPE.MONS_SNAKE, ENT_TYPE.MONS_SPIDER})
-				for i=1,#sun_challenge_spawns do
-					local spawn = sun_challenge_spawns[i]
-					kill_entity(spawn)
-				end
-			end
-			
-			-- Turns off all generators.
-			function deactivate_generators()
-				for i = 1, #sunchallenge_generators do
-					local generator = sunchallenge_generators[i]
-					generator.on_off = false
-				end
-			end
-			
-			-- Turns on all generators that are within 8 tiles of the player. For some reason these generators are spawning enemies
-			-- with a greater range than real sun challenges. Turns all other generators off.
+			-- Turns on all generators to begin the challenge.
 			function activate_generators()
 				for i = 1, #sunchallenge_generators do
 					local generator = sunchallenge_generators[i]
-					local generatorX, generatorY = get_position(generator.uid)
-					local playerX, playerY = get_position(players[1].uid)
-					generator.on_off = (math.abs(playerX - generatorX) < 8 and math.abs(playerY - generatorY) < 8)
+					generator.on_off = true
 				end
 			end
 			if players[1].health == 0 then
@@ -861,14 +868,12 @@ set_callback(function ()
 					cancel_toast()
 				end
 				if time_waiting > 240 then
+					challenge_waitroom:activate_laserbeam(false)
 					toast("Survive!")
 					sun_challenge_toast_shown = 4
 					activate_generators()
-					challenge_waitroom:activate_laserbeam(false)
 				end
 			elseif sun_challenge_toast_shown == 4 then
-				-- Call activate_generators() every frame so that the correct ones turn on if the player moves into or out of range.
-				activate_generators()
 				if time_waiting > 240 + 25 * 60 then
 					toast("5 seconds remaining!")
 					sun_challenge_toast_shown = 5
@@ -884,8 +889,6 @@ set_callback(function ()
 					if challenge_reward_position_x then
 						spawn_idol(challenge_reward_position_x, challenge_reward_position_y, challenge_reward_layer)
 					end
-				else
-					activate_generators()
 				end
 			end
 		elseif sun_wait_timer and state.time_level - sun_wait_timer > 90 then
@@ -1200,6 +1203,10 @@ set_callback(function ()
 		save_current_run_stats()
 		save_data()
 	end
+--	local x, y, layer = players[1].x, players[1].y, LAYER.FRONT-- get_postition(players[1].uid)
+--	spawn_entity(players[1].type.id, 15, 0, LAYER.PLAYER, 0, 0)
+--	players[1].x = players[1].x + 5
+--	players[1].flags = set_flag(players[1].flags, ENT_FLAG.INVISIBLE)
 end, ON.TRANSITION)
 
 set_callback(function ()
