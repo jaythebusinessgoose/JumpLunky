@@ -1,18 +1,29 @@
 # JumpLunky
 
-
 Kaizo-like levels in Spelunky 2.
 
 Currently includes 4 levels, with more in development. The 4 levels have the following themes:
 - Dwelling (Enemy jumping)
 - Volcana (Chain jumping)
 - Temple (Crush trap puzzles)
+- Ice Caves (Springs and ice enemies)
 - Sunken City (Buble wrap platforming)
 
 Can you beat them all? Can you collect all of the golden idols?
 <br/>
 ## Version History
-<br/>
+
+### Version 1.5:
+
+Added one additional level.
+
+Updated the win UI to look prettier.
+
+Added a Stats UI to the base camp to view PBs and completion stats.
+
+Removed annoying shopkeeper sound when walking past basecamp signs.
+
+Added button prompts to telescopes and basecamp signs.
 
 ### Version 1.4:
 Added additional buttons to escape the  telescope.
