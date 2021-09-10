@@ -6,7 +6,7 @@ Currently includes 4 levels, with more in development. The 4 levels have the fol
 - Dwelling (Enemy jumping)
 - Volcana (Chain jumping)
 - Temple (Crush trap puzzles)
-- Ice Caves (Springs and ice enemies)
+- Ice Caves (Spring traps)
 - Sunken City (Buble wrap platforming)
 
 Can you beat them all? Can you collect all of the golden idols?
