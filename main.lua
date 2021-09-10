@@ -303,7 +303,6 @@ end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 
 set_callback(function (ctx)
 	if state.theme == THEME.BASE_CAMP then return end
-	state.level_gen.shop_type = SHOP_TYPE.DICE_SHOP
 	-- Add buffer templates so that we can replace generated rooms with a room full of floor.
 	ctx:add_level_files { 'buffer.lvl' }
 	
@@ -334,11 +333,12 @@ for x = 0, 3 do
 	room_templates[x] = room_templates_x
 end
 local buffer_template = define_room_template("buffer", ROOM_TEMPLATE_TYPE.NONE)
+local buffer_hard_template = define_room_template("buffer_hard", ROOM_TEMPLATE_TYPE.NONE)
 local buffer_special_template = define_room_template("buffer_special", ROOM_TEMPLATE_TYPE.NONE)
 
 -- Returns size of the level in width, height.
 function size_of_level(level)
-	if level == TEMPLE_LEVEL then
+	if level == TEMPLE_LEVEL or level == DWELLING_LEVEL then
 		return 4, 5
 	else
 		return 4, 4
@@ -360,7 +360,7 @@ end
 -- for a shop-themed door.
 function is_shop_template_for_level_at(level, x, y)
 	if level == SUNKEN_LEVEL then
-		if x == 1 and y == 2 then
+		if x == 2 and y == 2 then
 			return true
 		end
 	end
@@ -381,14 +381,15 @@ set_callback(function (ctx)
 	local offsetX, offsetY = level_offset(level)
 	state.height = height + offsetY
 	state.width = width + offsetX
+	local buffer = buffer_template_for_level(level)
 	for x = 0, width - 1 do
 		for y = 0, height - 1 do
-			ctx:set_room_template(x + offsetX, y + offsetY, LAYER.BACK, buffer_template)
+			ctx:set_room_template(x + offsetX, y + offsetY, LAYER.BACK, buffer_hard_template)
 			ctx:set_room_template(x + offsetX, y + offsetY, LAYER.FRONT, room_templates[x][y])
        	end
 		for y = 1, offsetY - 1 do
-			ctx:set_room_template(x, y , LAYER.BACK, buffer_template)
-			ctx:set_room_template(x, y, LAYER.FRONT, buffer_template)
+			ctx:set_room_template(x, y , LAYER.BACK, buffer_hard_template)
+			ctx:set_room_template(x, y, LAYER.FRONT, buffer_hard_template)
 		end
 	end
 end, ON.POST_ROOM_GENERATION)
@@ -673,8 +674,10 @@ set_post_entity_spawn(function (entity)
 	end
 end, SPAWN_TYPE.ANY, 0, ENT_TYPE.BG_DOOR_FRONT_LAYER)
 
--- Add shop backlayer tiles to the room so it looks more like an actual challenge.
+local kill_tun_plz
+local tunx,tuny,tunlayer
 set_post_entity_spawn(function (entity)
+	-- Add shop backlayer tiles to the room so it looks more like an actual challenge.
 	local x, y, layer = get_position(entity.uid)
 	local room_index_x, room_index_y = get_room_index(x, y)
 	local room_start_x, room_start_y = get_room_pos(room_index_x, room_index_y)
@@ -696,17 +699,34 @@ set_post_entity_spawn(function (entity)
 			shop:set_texture(new_texture)
 		end
 	end
+
+	-- Prepare Tun to be killed.
+	kill_tun_plz = entity
+	state.merchant_aggro = 1
+	tunx, tuny, tunlayer = x, y, layer
+	entity.health = 1
+	entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
+	entity.flags = set_flag(entity.flags, ENT_FLAG.PICKUPABLE)
+	entity.flags = set_flag(entity.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
+	entity.flags = set_flag(entity.flags, ENT_FLAG.FACING_LEFT)
+	
+	-- Move Tun off-screen to kill her without the player seeing or hearing.
+	move_entity(entity.uid, 10000, y, layer, 0, 0)
+	-- Spawn a skull at Tun's position to kill her.
+	spawn_entity(ENT_TYPE.ITEM_SKULLDROPTRAP_SKULL, 10000, y, layer, 0, 0)
 end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_MERCHANT)
 
-set_post_entity_spawn(function (entity)
-	if level == SUNKEN_LEVEL then
-		-- Kill Tun when she spawns.
-		entity.health = 0
-		entity.flags = set_flag(entity.flags, ENT_FLAG.FACING_LEFT)
-		entity.flags = clr_flag(entity.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
+set_callback(function()
+	if level == SUNKEN_LEVEL and kill_tun_plz then
+		if kill_tun_plz.health == 0 then
+			kill_tun_plz.flags = clr_flag(kill_tun_plz.flags, ENT_FLAG.INVISIBLE)
+			kill_tun_plz.flags = set_flag(kill_tun_plz.flags, ENT_FLAG.FACING_LEFT)
+			move_entity(kill_tun_plz.uid, tunx, tuny, tunlayer, 0, 0)
+			kill_tun_plz = nil
+		end
 	end
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_MERCHANT)
------ here
+end, ON.FRAME)
+
 set_pre_tile_code_callback(function(x, y, layer)
 	-- Spawn a non-loaded HouYi Bow.
 	spawn_entity(ENT_TYPE.ITEM_HOUYIBOW, x, y, layer, 0, 0)
@@ -763,13 +783,17 @@ set_post_entity_spawn(function(entity)
 	end
 end, SPAWN_TYPE.SYSTEMIC, 0, ENT_TYPE.ITEM_CAPE)
 
+local has_payed_for_sun_challenge = false
+local sun_wait_timer
 local has_activated_sun_challenge = false
 local sun_challenge_activation_time
 local has_completed_sun_challenge = false
 local sun_challenge_toast_shown = 0
 set_callback(function ()
 	if level == SUNKEN_LEVEL then
-		if has_activated_sun_challenge and not has_completed_sun_challenge then
+		if has_completed_sun_challenge then
+			-- Do nothing, all done.
+		elseif has_activated_sun_challenge then
 			-- This means the player is currently participating in the challenge or waiting for it to begin.
 			
 			-- The number of frames since the challenge was started.
@@ -777,7 +801,7 @@ set_callback(function ()
 			
 			-- This allows us to kill all of the spanws when the challenge is completed or the player dies.
 			function clear_sun_challenge_spawns()
-				local sun_challenge_spawns = get_entities_by_type({ENT_TYPE.MONS_SORCERESS, ENT_TYPE.MONS_VAMPIRE, ENT_TYPE.MONS_WITCHDOCTOR, ENT_TYPE.MONS_NECROMANCER, ENT_TYPE.MONS_REDSKELETON })
+				local sun_challenge_spawns = get_entities_by_type({ENT_TYPE.MONS_SORCERESS, ENT_TYPE.MONS_VAMPIRE, ENT_TYPE.MONS_WITCHDOCTOR, ENT_TYPE.MONS_NECROMANCER, ENT_TYPE.MONS_REDSKELETON, ENT_TYPE.MONS_BAT, ENT_TYPE.MONS_BEE, ENT_TYPE.MONS_SKELETON, ENT_TYPE.MONS_SNAKE, ENT_TYPE.MONS_SPIDER})
 				for i=1,#sun_challenge_spawns do
 					local spawn = sun_challenge_spawns[i]
 					kill_entity(spawn)
@@ -840,6 +864,7 @@ set_callback(function ()
 					toast("Survive!")
 					sun_challenge_toast_shown = 4
 					activate_generators()
+					challenge_waitroom:activate_laserbeam(false)
 				end
 			elseif sun_challenge_toast_shown == 4 then
 				-- Call activate_generators() every frame so that the correct ones turn on if the player moves into or out of range.
@@ -853,7 +878,7 @@ set_callback(function ()
 					toast("You've won!")
 					deactivate_generators()
 					clear_sun_challenge_spawns()
-					challenge_waitroom:activate_laserbeam(false)
+					challenge_forcefield:activate_laserbeam(false)
 					sun_challenge_toast_shown = 6
 					has_completed_sun_challenge = true
 					if challenge_reward_position_x then
@@ -863,24 +888,50 @@ set_callback(function ()
 					activate_generators()
 				end
 			end
-		elseif not has_activated_sun_challenge then
-			if sunchallenge_switch.timer > 0 then
-				has_activated_sun_challenge = true
-				sun_challenge_activation_time = state.time_level
-				challenge_waitroom:activate_laserbeam(true)
-				
-				-- TODO: Figure out how to play the music.
+		elseif sun_wait_timer and state.time_level - sun_wait_timer > 90 then
+			-- After the player has been in the waiting room for 90 frames (1.5 seconds), turn on the laserbeams and start the countdown
+			-- to begin the challenge.
+			has_activated_sun_challenge = true
+			challenge_forcefield:activate_laserbeam(true)
+			challenge_waitroom:activate_laserbeam(true)
+			sun_challenge_activation_time = state.time_level
+		elseif has_payed_for_sun_challenge then
+			local minx, miny, layer = get_position(challenge_waitroom.uid)
+			local maxx, _, _ = get_position(challenge_forcefield.uid) 
+			local playerx, playery, playerLayer = get_position(players[1].uid)
+			
+			-- Reset the wait timer if the player leaves the waiting room within 90 frames (1.5 seconds) of entering it.
+			if not (layer == playerLayer and playerx > minx and playerx < maxx - 1 and playery < miny + 3 and playery > miny) then
+				sun_wait_timer = state.time_level
 			end
+		elseif state.kali_favor >= 3 then
+			cancel_toast()
+			has_payed_for_sun_challenge = true			
+			challenge_waitroom:activate_laserbeam(true)
+			function activate_challenge()
+				toast("Enter the door to begin the Challenge.")		
+			end
+			set_timeout(activate_challenge, 1)
+			sun_wait_timer = state.time_level
 		end
 	end
 end, ON.FRAME)
 
+-- We don't want sun challenge bats or Guts tadpoles/coffins.
 set_post_entity_spawn(function (entity)
 	if level == SUNKEN_LEVEL then
 		entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
 		move_entity(entity.uid, 1000, 0, 0, 0)
 	end
 end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_BAT, ENT_TYPE.MONS_TADPOLE, ENT_TYPE.ITEM_COFFIN)
+
+define_tile_code("kali_statue")
+set_pre_tile_code_callback(function(x, y, layer)
+	local kali_uid = spawn_entity(ENT_TYPE.BG_KALI_STATUE, x + .5, y, layer, 0, 0)
+	local kali = get_entity(kali_uid)
+	kali.height = 7
+	kali.width = 6
+end, "kali_statue")
 
 ------------------------
 ---- /SUN CHALLENGE ----
@@ -1318,6 +1369,12 @@ function clear_variables()
 	challenge_reward_position_x = nil
 	challenge_reward_position_y = nil
 	challenge_reward_layer = nil
+	has_payed_for_sun_challenge = false
+	sun_wait_timer = nil
+	kill_tun_plz = nil
+	tunx = nil
+	tuny = nil
+	tunlayer = nil
 	
 	volcana_door = nil
 	volcana_sign = nil
