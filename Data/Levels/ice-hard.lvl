@@ -88,7 +88,7 @@
 //\?idol						I	// Idol statue
 //\?idol_floor				i	// Idol block
 \?vault_wall				|	// Vault wall
-\?coffin					g	// Character coffin (NPC/Player)
+//\?coffin					g	// Character coffin (NPC/Player)
 	
 \?shop_sign					K
 \?shop_door					k
@@ -126,6 +126,7 @@
 \?icefloor							c
 \?idol_reward						Q
 \?telescope							j
+\?telescope_left					g
 \?ice_turkey 							z
 \?ice_yeti					%
 \?ice_idol					i
@@ -512,7 +513,7 @@ cc00000000
 0000000000
 0000000000
 0000000000
-0000000000
+0g00000000
 %100000000
 1000000000
 1000000000

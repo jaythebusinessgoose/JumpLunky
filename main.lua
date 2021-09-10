@@ -1154,7 +1154,7 @@ set_callback(function()
 	
 	local player = players[1]
 	for _, telescope in ipairs(telescopes) do
-		if player.layer == get_entity(telescope).layer and distance(player.uid, telescope) <= 1 and player:is_button_pressed(BUTTON.DOOR) then
+		if telescope and get_entity(telescope) and player.layer == get_entity(telescope).layer and distance(player.uid, telescope) <= 1 and player:is_button_pressed(BUTTON.DOOR) then
 			-- Begin telescope interaction when the door button is pressed within a tile of the telescope.
 			telescope_activated = true
 			telescope_was_activated = nil
