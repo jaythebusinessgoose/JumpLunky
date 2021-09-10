@@ -1,0 +1,97 @@
+// ------------------------------
+//  BASE CAMP (UNLOCKED SHORTCUT STATION)
+// ------------------------------
+
+// ------------------------------
+//  TILE CODES
+// ------------------------------
+
+\?empty						0
+\?floor						1
+\?surface_floor				2
+\?surface_hidden_floor		3
+\?minewood_floor			=
+\?ladder					L
+\?ladder_plat				P	// Ladder with platform across it
+\?platform					p
+\?starting_exit				s
+\?door2						D	// Door to other Layer
+\?push_block				4
+
+\?treasure_chest			t
+\?crate_bombs				B
+\?crate_ropes				R
+
+\?water						w
+
+\?shortcut_station_banner	8
+
+// ------------------------------
+//  TEMPLATES
+// ------------------------------
+//
+//  !ignore		Ignore the following template. This is to make building rooms easier.
+//  !flip		Flip the following template to make another. i.e. The following template = two templates.
+//  !onlyflip	Flip the following template (original is ignored)
+//  !dual		The next template contains both a frontal and back room
+//  !rare		The next template is rare (only 5% chance of a rare template being used).
+//  !hard		The next template is hard (only appear in the second two levels of the area).
+//  !liquid		The next template contains liquid (used to limit the number of liquid drops)
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom3-1
+////////////////////////////////////////////////////////////////////////////////
+
+\!ignore
+0000000000
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1111111000
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom3-2
+////////////////////////////////////////////////////////////////////////////////
+
+\!ignore
+0000000000
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1h11111111
+0000000111
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom4-1 // SHORTCUT STATION
+////////////////////////////////////////////////////////////////////////////////
+
+\!ignore
+\!dual
+=======0s0 XXXXXXXXXX
+=00000==== X00000XXXX
+=L00D0=000 XbLdD0XXXX
+=P=====0s0 X=P===XXXX
+1L======== XXL===XXXX
+1L0000=000 XXL=0l0XXX
+1L0i0000s0 XXL0dbbXXX
+========== XX=====XXX
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom4-2
+////////////////////////////////////////////////////////////////////////////////
+
+\!ignore
+\!dual
+00L0800111 XXXXXXXXXX
+=hP00001=1 XXXXXXXXXX
+00L00000=0 XXXXXXXXXX
+00L0000000 XXXXXXXXXX
+=hP000==== XXXXXXXXXX
+00L0001=00 XXXXXXXl00
+00L00p1=0W XXXXXXX0LD
+========== XXXXXXX0P=

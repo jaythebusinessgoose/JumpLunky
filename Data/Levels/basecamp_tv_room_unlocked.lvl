@@ -1,0 +1,37 @@
+// ------------------------------
+//  BASE CAMP (UNLOCKED TV ROOM)
+// ------------------------------
+
+// ------------------------------
+//  TILE CODES
+// ------------------------------
+
+\?tv				z
+\?couch				q
+
+// ------------------------------
+//  TEMPLATES
+// ------------------------------
+//
+//  !ignore		Ignore the following template. This is to make building rooms easier.
+//  !flip		Flip the following template to make another. i.e. The following template = two templates.
+//  !onlyflip	Flip the following template (original is ignored)
+//  !dual		The next template contains both a frontal and back room
+//  !rare		The next template is rare (only 5% chance of a rare template being used).
+//  !hard		The next template is hard (only appear in the second two levels of the area).
+//  !liquid		The next template contains liquid (used to limit the number of liquid drops)
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom5-2
+////////////////////////////////////////////////////////////////////////////////
+
+\!dual
+\!ignore
+XXXXXXXXXX XXXXXXX0L=
+0004010000 X00000=0L0
+111100000W =O0000LSLD
+11110000== ===000P===
+1111000000 000000L=11
+111====000 Sq00z0Lo11
+1111111000 ========11
+111111==== X11111111X

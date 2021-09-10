@@ -1,5 +1,5 @@
 meta.name = 'Jumplunky'
-meta.version = '1'
+meta.version = '1.3'
 meta.description = 'Challenging platforming puzzles'
 meta.author = 'JayTheBusinessGoose'
 
@@ -8,9 +8,12 @@ local VOLCANA_LEVEL <const> = 1
 local TEMPLE_LEVEL <const> = 2
 local SUNKEN_LEVEL <const> = 3
 
-first_level = DWELLING_LEVEL
+local default_levels = {DWELLING_LEVEL, VOLCANA_LEVEL, TEMPLE_LEVEL, SUNKEN_LEVEL}
+local levels = default_levels
+
+first_level = levels[1]
 initial_level = first_level
-max_level = SUNKEN_LEVEL
+max_level = levels[#levels]
 level = initial_level
 continuing_run = false
 local save_context
@@ -18,26 +21,109 @@ local save_context
 initial_bombs = 0
 initial_ropes = 0
 
+local DIFFICULTY = {
+	EASY = 0,
+	NORMAL = 1,
+	HARD = 2,
+}
+local current_difficulty = DIFFICULTY.NORMAL
+
 -- overall state
-local time_total = 0
-completion_time = 0
-completion_time_new_pb = false
-completion_deaths = 0
-completion_deaths_new_pb = false
-completion_idols = 0
-best_time = 0
-best_time_idol_count = 0
-best_time_death_count = 0
-least_deaths_completion = nil
-least_deaths_completion_time = 0
-max_idol_completions = 0
-max_idol_best_time = 0
-deathless_completions = 0
-best_level = nil
-completions = 0
 total_idols = 0
 idols_collected = {}
+hardcore_enabled = false
+hardcore_previously_enabled = false
 
+-- Total time of the current run.
+local time_total = 0
+
+-- Stats for games played in the default difficulty.
+normal_stats = {
+	best_time = 0,
+	best_time_idol_count = 0,
+	best_time_death_count = 0,
+	least_deaths_completion = nil,
+	least_deaths_completion_time = 0,
+	max_idol_completions = 0,
+	max_idol_best_time = 0,
+	deathless_completions = 0,
+	best_level = nil,
+	completions = 0,
+}
+
+-- Stats for games played in the easy difficulty.
+easy_stats = {
+	best_time = 0,
+	best_time_death_count = 0,
+	least_deaths_completion = nil,
+	least_deaths_completion_time = 0,
+	deathless_completions = 0,
+	best_level = nil,
+	completions = 0,
+}
+
+-- Stats for games played in the hard difficulty.
+hard_stats = {
+	best_time = 0,
+	best_time_idol_count = 0,
+	best_time_death_count = 0,
+	least_deaths_completion = nil,
+	least_deaths_completion_time = 0,
+	max_idol_completions = 0,
+	max_idol_best_time = 0,
+	deathless_completions = 0,
+	best_level = nil,
+	completions = 0,
+}
+
+-- Stats for games played in the current difficulty.
+function current_stats()
+	if current_difficulty == DIFFICULTY.HARD then
+		return hard_stats
+	elseif current_difficulty == DIFFICULTY.EASY then
+		return easy_stats
+	end
+	return normal_stats
+end
+
+-- Stats for games played in the default difficulty in hardcore mode.
+hardcore_stats = {
+	best_time = 0,
+	best_level = nil,
+	completions = 0,
+	best_time_idol_count = 0,
+	max_idol_completions = 0,
+	max_idol_best_time = 0,
+}
+
+-- Stats for games played in the easy difficulty in hardcore mode.
+hardcore_stats_easy = {
+	best_time = 0,
+	best_level = nil,
+	completions = 0,
+}
+
+-- Stats for games played in the hard difficulty in hardcore mode.
+hardcore_stats_hard = {
+	best_time = 0,
+	best_level = nil,
+	completions = 0,
+	best_time_idol_count = 0,
+	max_idol_completions = 0,
+	max_idol_best_time = 0,
+}
+
+-- Stats for games played in the current difficulty in hardcore mode.
+function current_hardcore_stats()
+	if current_difficulty == DIFFICULTY.HARD then
+		return hardcore_stats_hard
+	elseif current_difficulty == DIFFICULTY.EASY then
+		return hardcore_stats_easy
+	end
+	return hardcore_stats
+end
+
+-- True if the player has seen ana dead in the sunken city level.
 has_seen_ana_dead = false
 
 -- current run state
@@ -45,15 +131,54 @@ attempts = 0
 idols = 0
 run_idols_collected = {}
 
--- saved run state
-has_saved_run = false
-saved_run_attempts = nil
-saved_run_time = nil
-saved_run_level = nil
-saved_run_idol_count = nil
-saved_run_idols_collected = nil
+-- saved run state for the default difficulty.
+local easy_saved_run = {
+	has_saved_run = false,
+	saved_run_attempts = nil,
+	saved_run_time = nil,
+	saved_run_level = nil,
+	saved_run_idol_count = nil,
+	saved_run_idols_collected = {},
+}
+-- saved run state for the easy difficulty.
+local normal_saved_run = {
+	has_saved_run = false,
+	saved_run_attempts = nil,
+	saved_run_time = nil,
+	saved_run_level = nil,
+	saved_run_idol_count = nil,
+	saved_run_idols_collected = {},
+}
+-- saved run state for the hard difficulty.
+local hard_saved_run = {
+	has_saved_run = false,
+	saved_run_attempts = nil,
+	saved_run_time = nil,
+	saved_run_level = nil,
+	saved_run_idol_count = nil,
+	saved_run_idols_collected = {},
+}
+-- saved run state for the current difficulty.
+function current_saved_run()
+	if current_difficulty == DIFFICULTY.EASY then
+		return easy_saved_run
+	elseif current_difficulty == DIFFICULTY.HARD then
+		return hard_saved_run
+	else
+		return normal_saved_run
+	end
+end
 
+-- Whether the win screen should currently be showing.
 local win = false
+-- Stats for the current completion.
+completion_time = 0
+completion_time_new_pb = false
+completion_deaths = 0
+completion_deaths_new_pb = false
+completion_idols = 0
+
+-- Whether in a game and not in the menus -- including in the base camp.
 local has_seen_base_camp = false
 
 --------------
@@ -84,51 +209,61 @@ function title_of_level(level)
 	return "Unknown level: " .. level
 end
 
-set_callback(function ()
+-- Replace the background texture of a door with the texture of the correct level's theme.
+function texture_door_at(x, y, layer, level)
+	function texture_file_for_level(level)
+		if level == DWELLING_LEVEL then
+			return "floor_cave.png"
+		elseif level == VOLCANA_LEVEL then
+			return "floor_volcano.png"
+		elseif level == TEMPLE_LEVEL then
+			return "floor_temple.png"
+		elseif level == SUNKEN_LEVEL then
+			return "floor_sunken.png"
+		else
+			return "floor_cave.png"
+		end
+	end
+
+	local doors = get_entities_at(ENT_TYPE.BG_DOOR, 0, x, y, layer, 1)
+	for i = 1, #doors do
+		local door = get_entity(doors[i])
+		local texture = door:get_texture()
+		local texture_definition = get_texture_definition(texture)
+		-- The image for the door is in the same position in all texture maps, so all we need to do is
+		-- replace the image we pull from.
+		texture_definition.texture_path = "Data/Textures/" .. texture_file_for_level(level)
+		local new_texture = define_texture(texture_definition)
+		door:set_texture(new_texture)
+	end
+end
+	
+function update_continue_door_enabledness()
 	-- Effectively disables the "continue run" door if there is no saved progress to continue from.
-	if not has_saved_run and continue_door then
+	if continue_door then
 		local x, y, layer = get_position(continue_door)
 		local doors = get_entities_at(0, 0, x, y, layer, 1)
 		for i=1,#doors do
 			local door = get_entity(doors[i])
-			door.flags = clr_flag(door.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-		end
-	end
-	
-	-- Replace the background texture of a door with the texture of the correct level's theme.
-	function texture_door_at(x, y, layer, level)
-		function texture_file_for_level(level)
-			if level == DWELLING_LEVEL then
-				return "floor_cave.png"
-			elseif level == VOLCANA_LEVEL then
-				return "floor_volcano.png"
-			elseif level == TEMPLE_LEVEL then
-				return "floor_temple.png"
-			elseif level == SUNKEN_LEVEL then
-				return "floor_sunken.png"
+			if not current_saved_run().has_saved_run or hardcore_enabled then
+				door.flags = clr_flag(door.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
 			else
-				return "floor_cave.png"
+				-- Re-enable the door if hardcore mode is disabled, or if the difficulty is changed to one with a saved run.
+				door.flags = set_flag(door.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
 			end
 		end
-	
-		local doors = get_entities_at(ENT_TYPE.BG_DOOR, 0, x, y, layer, 1)
-		for i = 1, #doors do
-			local door = get_entity(doors[i])
-			local texture = door:get_texture()
-			local texture_definition = get_texture_definition(texture)
-			-- The image for the door is in the same position in all texture maps, so all we need to do is
-			-- replace the image we pull from.
-			texture_definition.texture_path = "Data/Textures/" .. texture_file_for_level(level)
-			local new_texture = define_texture(texture_definition)
-			door:set_texture(new_texture)
-		end
+		texture_door_at(x, y, layer, current_saved_run().saved_run_level)
+		local continue_door_entity = get_entity(continue_door)
+		continue_door_entity.world = world_for_level(current_saved_run().saved_run_level)
+		continue_door_entity.level = level_for_level(current_saved_run().saved_run_level)
+		continue_door_entity.theme = theme_for_level(current_saved_run().saved_run_level)
 	end
+end
+
+set_callback(function ()
+	update_continue_door_enabledness()
 	
 	-- Replace the texture of the three shortcut doors and the continue door with the theme they lead to.
-	if continue_door then
-		local x, y, layer = get_position(continue_door)
-		texture_door_at(x, y, layer, saved_run_level)
-	end
 	if volcana_door then
 		local x, y, layer = get_position(volcana_door)
 		texture_door_at(x, y, layer, VOLCANA_LEVEL)
@@ -208,7 +343,13 @@ end, "locked_shortcut")
 -- Creates a "room" for the continue entrance, with a door and a sign.
 define_tile_code("continue_run")
 set_pre_tile_code_callback(function(x, y, layer)
-	continue_door = spawn_door(x + 1, y, layer, world_for_level(saved_run_level), level_for_level(saved_run_level), theme_for_level(saved_run_level))
+	continue_door = spawn_door(
+		x + 1,
+		y,
+		layer,
+		world_for_level(current_saved_run().saved_run_level),
+		level_for_level(current_saved_run().saved_run_level),
+		theme_for_level(current_saved_run().saved_run_level))
 	continue_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 3, y, layer, 0, 0)
 	local sign = get_entity(continue_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
@@ -223,7 +364,99 @@ set_pre_tile_code_callback(function(x, y, layer)
 	return true
 end, "dwelling_idol")
 
-local button_was_pressed = false
+local tunnel_x, tunnel_y, tunnel_layer
+local hardcore_sign, easy_sign, normal_sign, hard_sign
+-- Spawn tunnel, and spawn the difficulty and mode signs relative to her position.
+define_tile_code("tunnel_position")
+set_pre_tile_code_callback(function(x, y, layer)
+	tunnel_x, tunnel_y, tunnel_layer = x, y, layer
+	
+	hardcore_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 3, y, layer, 0, 0)
+	local hardcore_sign_entity = get_entity(hardcore_sign)
+	-- This stops the sign from displaying its default toast text when pressing the door button.
+	hardcore_sign_entity.flags = clr_flag(hardcore_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	
+	easy_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 6, y, layer, 0, 0)
+	local easy_sign_entity = get_entity(easy_sign)
+	-- This stops the sign from displaying its default toast text when pressing the door button.
+	easy_sign_entity.flags = clr_flag(easy_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	
+	normal_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 7, y, layer, 0, 0)
+	local normal_sign_entity = get_entity(normal_sign)
+	-- This stops the sign from displaying its default toast text when pressing the door button.
+	normal_sign_entity.flags = clr_flag(normal_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	
+	hard_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 8, y, layer, 0, 0)
+	local hard_sign_entity = get_entity(hard_sign)
+	-- This stops the sign from displaying its default toast text when pressing the door button.
+	hard_sign_entity.flags = clr_flag(hard_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+end, "tunnel_position")
+
+local tunnel
+set_callback(function()
+	-- Spawn tunnel in the mode room and turn the normal tunnel invisible so the player doesn't see her.
+	if state.theme ~= THEME.BASE_CAMP then return end
+	local tunnels = get_entities_by_type(ENT_TYPE.MONS_MARLA_TUNNEL)
+	if #tunnels > 0 then
+		local tunnel_uid = tunnels[1]
+		local tunnel = get_entity(tunnel_uid)
+		tunnel.flags = set_flag(tunnel.flags, ENT_FLAG.INVISIBLE)
+		tunnel.flags = clr_flag(tunnel.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	end
+	local tunnel_id = spawn_entity(ENT_TYPE.MONS_MARLA_TUNNEL, tunnel_x, tunnel_y, tunnel_layer, 0, 0)
+	tunnel = get_entity(tunnel_id)
+	
+	tunnel.flags = clr_flag(tunnel.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
+	tunnel.flags = set_flag(tunnel.flags, ENT_FLAG.FACING_LEFT)
+	--end
+end, ON.CAMP)
+
+function unique_idols_collected()
+	local unique_idol_count = 0
+	for i, lvl in ipairs(default_levels) do
+		if idols_collected[lvl] then
+			unique_idol_count = unique_idol_count + 1
+		end
+	end
+	return unique_idol_count
+end
+
+function hardcore_available()
+	return unique_idols_collected() == #default_levels
+end
+
+local tunnel_enter_displayed
+local tunnel_exit_displayed
+local tunnel_enter_hardcore_state
+local tunnel_enter_difficulty
+local tunnel_exit_hardcore_state
+local tunnel_exit_difficulty
+local tunnel_exit_ready
+set_callback(function()
+	if state.theme ~= THEME.BASE_CAMP then return end
+	if #players < 1 then return end
+	local player = players[1]
+	local x, y, layer = get_position(player.uid)
+	if layer == LAYER.FRONT then
+		-- Reset tunnel dialog states when exiting the back layer so the dialog shows again.
+		tunnel_enter_displayed = false
+		tunnel_exit_displayed = false
+		tunnel_enter_hardcore_state = hardcore_enabled
+		tunnel_exit_hardcore_state = hardcore_enabled
+		tunnel_enter_difficulty = current_difficulty
+		tunnel_exit_difficulty = current_difficulty
+		tunnel_exit_ready = false
+	elseif tunnel_enter_displayed and x > tunnel_x + 2 then
+		-- Do not show Tunnel's exit dialog until the player moves a bit to her right.
+		tunnel_exit_ready = true
+	end
+end, ON.GAMEFRAME)
+
+local player_near_hardcore_sign = false
+local player_near_easy_sign = false
+local player_near_normal_sign = false
+local player_near_hard_sign = false
+
 set_callback(function()
 	if state.theme ~= THEME.BASE_CAMP then return end
 	if #players < 1 then return end
@@ -231,27 +464,175 @@ set_callback(function()
 	
 	-- Show a toast when pressing the door button on the signs near shortcut doors and continue door.
 	if player:is_button_pressed(BUTTON.DOOR) then
-		button_was_pressed = true
-		
-		if volcana_sign and distance(player.uid, volcana_sign) <= 1 then
+		if player.layer == LAYER.FRONT and volcana_sign and distance(player.uid, volcana_sign) <= 1 then
 			toast("Shortcut to Volcana trial")
-		elseif temple_sign and distance(player.uid, temple_sign) <= 1 then
+		elseif player.layer == LAYER.FRONT and temple_sign and distance(player.uid, temple_sign) <= 1 then
 			toast("Shortcut to Temple trial")
-		elseif sunken_sign and distance(player.uid, sunken_sign) <= 1 then
+		elseif player.layer == LAYER.FRONT and sunken_sign and distance(player.uid, sunken_sign) <= 1 then
 			toast("Shortcut to Sunken City trial")
-		elseif continue_sign and distance(player.uid, continue_sign) <= 1 then
-			if has_saved_run then
-				toast("Continue run from " .. title_of_level(saved_run_level))
+		elseif player.layer == LAYER.FRONT and continue_sign and distance(player.uid, continue_sign) <= 1 then
+			if hardcore_enabled then
+				toast("Cannot continue in hardcore mode")
+			elseif current_saved_run().has_saved_run then
+				toast("Continue run from " .. title_of_level(current_saved_run().saved_run_level))
 			else
 				toast("No run to continue")
 			end
-		elseif continue_door and not has_saved_run and distance(player.uid, continue_door) <= 1 then
+		elseif player.layer == LAYER.FRONT and continue_door and not current_saved_run().has_saved_run and distance(player.uid, continue_door) <= 1 then
 			toast("No run to continue")
+		elseif player.layer == LAYER.FRONT and continue_door and hardcore_enabled and distance(player.uid, continue_door) <= 1 then
+			toast("Cannot continue in hardcore mode")
+		elseif player.layer == LAYER.BACK and hardcore_sign and distance(player.uid, hardcore_sign) <= .5 then
+			if hardcore_available() then
+				hardcore_enabled = not hardcore_enabled
+				hardcore_previously_enabled = true
+				update_continue_door_enabledness()
+				save_data()
+				if hardcore_enabled then
+					toast("Hardcore mode enabled")
+				else
+					toast("Hardcore mode disabled")
+				end
+			else
+				toast("Collect more idols to unlock hardcore mode")
+			end
+		elseif player.layer == get_entity(easy_sign).layer and distance(player.uid, easy_sign) <= .5 then
+			if current_difficulty ~= DIFFICULTY.EASY then
+				current_difficulty = DIFFICULTY.EASY
+				update_continue_door_enabledness()
+				save_data()
+				toast("Easy mode enabled")
+			end
+		elseif player.layer == get_entity(hard_sign).layer and distance(player.uid, hard_sign) <= .5 then
+			if hardcore_available() then
+				if current_difficulty ~= DIFFICULTY.HARD then
+					current_difficulty = DIFFICULTY.HARD
+					update_continue_door_enabledness()
+				save_data()
+					toast("Hard mode enabled")
+				end
+			else 
+				toast("collect more idols to unlock hard mode")
+			end
+		elseif player.layer == get_entity(normal_sign).layer and distance(player.uid, normal_sign) <= .5 then
+			if current_difficulty ~= DIFFICULTY.NORMAL then
+				if current_difficulty == DIFFICULTY.EASY then
+					toast("Easy mode disabled")
+				elseif current_difficulty == DIFFICULTY.HARD then
+					toast("Hard mode disabled")
+				end
+				current_difficulty = DIFFICULTY.NORMAL
+				update_continue_door_enabledness()
+				save_data()
+			end
 		end
-	else
-		button_was_pressed = false
 	end
 	
+	-- Speech bubbles for Tunnel and mode signs.
+	if tunnel and player.layer == tunnel.layer and distance(player.uid, tunnel.uid) <= 1 then
+		if not tunnel_enter_displayed then
+			-- Display a different Tunnel text on entering depending on how many idols have been collected and the hardcore state.
+			tunnel_enter_displayed = true
+			tunnel_enter_hardcore_state = hardcore_enabled
+			tunnel_enter_difficulty = current_difficulty
+			if unique_idols_collected() == 0 then
+				say(tunnel.uid, "Looking to turn down the heat?", 0, true)
+			elseif unique_idols_collected() < 2 then
+				say(tunnel.uid, "Come back when you're seasoned for a more difficult challenge.", 0, true)
+			elseif hardcore_enabled then
+				say(tunnel.uid, "Maybe that was too much. Go back to the sign to disable hardcore mode.", 0, true)
+			elseif hardcore_previously_enabled then
+				say(tunnel.uid, "Back to try again? Step on over.", 0, true)
+			elseif hardcore_available() then
+				say(tunnel.uid, "This looks too easy for you. Step over there to enable hardcore mode.", 0, true)
+			else
+				say(tunnel.uid, "You're quite the adventurer. Collect the rest of the idols to unlock a more difficult challenge.", 0, true)
+			end
+		elseif (not tunnel_exit_displayed or tunnel_exit_hardcore_state ~= hardcore_enabled or tunnel_exit_difficulty ~= current_difficulty) and tunnel_exit_ready and (hardcore_available() or (current_difficulty == DIFFICULTY.EASY and tunnel_exit_difficulty ~=DIFFICULTY.EASY)) then
+			-- On exiting, display a Tunnel dialog depending on whether hardcore mode has been enabled/disabled or the difficulty changed.
+			cancel_speechbubble()
+			tunnel_exit_displayed = true
+			tunnel_exit_hardcore_state = hardcore_enabled
+			tunnel_exit_difficulty = current_difficulty
+			set_timeout(function()
+				if hardcore_enabled and not tunnel_enter_hardcore_state or current_difficulty > tunnel_enter_difficulty then
+					say(tunnel.uid, "Good luck out there!", 0, true)
+				elseif not hardcore_enabled and tunnel_enter_hardcore_state or current_difficulty < tunnel_enter_difficulty then
+					say(tunnel.uid, "Take it easy.", 0, true)
+				elseif hardcore_enabled or current_difficulty == DIFFICULTY.HARD then
+					say(tunnel.uid, "Sticking with it. I like your guts!", 0, true)
+				else
+					say(tunnel.uid, "Maybe another time.", 0, true)
+				end
+			end, 1)
+		end
+	end
+	if hardcore_sign and player.layer == get_entity(hardcore_sign).layer and distance(player.uid, hardcore_sign) <= .5 then
+		-- When passing by the sign, read out what the sign is for.
+		if not player_near_hardcore_sign then
+			cancel_speechbubble()
+			player_near_hardcore_sign = true
+			set_timeout(function()
+				if hardcore_enabled then
+					say(hardcore_sign, "Hardcore mode (enabled)", 0, true)
+				else
+					say(hardcore_sign, "Hardcore mode", 0, true)
+				end
+			end, 1)
+		end
+	else
+		player_near_hardcore_sign = false
+	end
+	if easy_sign and player.layer == get_entity(easy_sign).layer and distance(player.uid, easy_sign) <= .5 then
+		-- When passing by the sign, read out what the sign is for.
+		if not player_near_easy_sign then
+			cancel_speechbubble()
+			player_near_easy_sign = true
+			set_timeout(function()
+				if current_difficulty == DIFFICULTY.EASY then
+					say(easy_sign, "Easy mode (enabled)", 0, true)
+				else
+					say(easy_sign, "Easy mode", 0, true)
+				end
+			end, 1)
+		end
+	else
+		player_near_easy_sign = false
+	end
+	if normal_sign and player.layer == get_entity(normal_sign).layer and distance(player.uid, normal_sign) <= .5 then
+		-- When passing by the sign, read out what the sign is for.
+		if not player_near_normal_sign then
+			cancel_speechbubble()
+			player_near_normal_sign = true
+			set_timeout(function()
+				if current_difficulty == DIFFICULTY.NORMAL then
+					say(normal_sign, "Normal mode (enabled)", 0, true)
+				else
+					say(normal_sign, "Normal mode", 0, true)
+				end
+			end, 1)
+		end
+	else
+		player_near_normal_sign = false
+	end
+	if hard_sign and player.layer == get_entity(hard_sign).layer and distance(player.uid, hard_sign) <= .5 then
+		-- When passing by the sign, read out what the sign is for.
+		if not player_near_hard_sign then
+			cancel_speechbubble()
+			player_near_hard_sign = true
+			set_timeout(function()
+				if current_difficulty == DIFFICULTY.HARD then
+					say(hard_sign, "Hard mode (enabled)", 0, true)
+				else
+					say(hard_sign, "Hard mode", 0, true)
+				end
+			end, 1)
+		end
+	else
+		player_near_hard_sign = false
+	end
+	
+	local saved_run = current_saved_run()
 	continuing_run = false
 	attempts = 0
 	time_total = 0
@@ -268,14 +649,14 @@ set_callback(function()
 	elseif (sunken_door and distance(players[1].uid, sunken_door) <= 1) or (sunken_sign and distance(player.uid, sunken_sign) <= 1) then
 		initial_level = SUNKEN_LEVEL
 		level = initial_level
-	elseif has_saved_run and ((continue_door and distance(players[1].uid, continue_door) <= 1) or (continue_sign and distance(player.uid, continue_sign) <= 1)) then
+	elseif (saved_run.has_saved_run and not hardcore_enabled) and ((continue_door and distance(players[1].uid, continue_door) <= 1) or (continue_sign and distance(player.uid, continue_sign) <= 1)) then
 		initial_level = first_level
-		level = saved_run_level
+		level = saved_run.saved_run_level
 		continuing_run = true
-		attempts = saved_run_attempts
-		time_total = saved_run_time
-		idols = saved_run_idol_count
-		run_idols_collected = saved_run_idols_collected
+		attempts = saved_run.saved_run_attempts
+		time_total = saved_run.saved_run_time
+		idols = saved_run.saved_run_idol_count
+		run_idols_collected = saved_run.saved_run_idols_collected
 	else
 		-- If not next to any door, just set the state to the initial level. This will be overridden before actually entering a
 		-- door, but is useful for showing GUI in the Camp.
@@ -310,15 +691,26 @@ set_callback(function (ctx)
 	-- instead of replacing the existing level files with it. Our level generation will run after
 	-- the level has already been generated and will simply increase the size of the level to add our
 	-- rooms and also fill in the existing rooms.
+	local level_file_name
     if level == DWELLING_LEVEL then
-		ctx:add_level_files { 'dwell.lvl' }
+		level_file_name = 'dwell'
 	elseif level == VOLCANA_LEVEL then
-       ctx:add_level_files { 'volc.lvl' }
-	elseif level == TEMPLE_LEVEL then
-       ctx:add_level_files { 'temp.lvl' }
-	elseif level == SUNKEN_LEVEL then
-		ctx:add_level_files { 'sunk.lvl' }
-    end
+		level_file_name = 'volc'
+    elseif level == TEMPLE_LEVEL then
+		level_file_name = 'temp'
+    elseif level == SUNKEN_LEVEL then
+		level_file_name = 'sunk'
+	else
+		return
+	end
+	local difficulty_prefix = '.lvl'
+	if current_difficulty == DIFFICULTY.HARD then
+		difficulty_prefix = '-hard.lvl'
+	elseif current_difficulty == DIFFICULTY.EASY then
+		difficulty_prefix = '-easy.lvl'
+	end
+	local file_name = f'{level_file_name}{difficulty_prefix}'
+	ctx:add_level_files { file_name }
 end, ON.PRE_LOAD_LEVEL_FILES)
 
 -- Create a bunch of room templates that can be used in lvl files to create rooms. To create a level
@@ -404,11 +796,12 @@ end, ON.POST_ROOM_GENERATION)
 ---- TELESCOPE ----
 -------------------
 
-local telescope
+local telescopes = {}
 define_tile_code("telescope")
 set_pre_tile_code_callback(function(x, y, layer)
-	telescope = spawn_entity(ENT_TYPE.ITEM_TELESCOPE, x, y, layer, 0, 0)
-	local telescope_entity = get_entity(telescope)
+	local new_telescope = spawn_entity(ENT_TYPE.ITEM_TELESCOPE, x, y, layer, 0, 0)
+	telescopes[#telescopes + 1] = new_telescope
+	local telescope_entity = get_entity(new_telescope)
 	-- Disable the telescope's default interaction because it interferes with the zooming and panning we want to do
 	-- when interacting with the telescope.
 	telescope_entity.flags = clr_flag(telescope_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
@@ -422,30 +815,32 @@ local telescope_activated = false
 local telescope_was_activated = nil
 local telescope_previous_zoom = nil
 set_callback(function() 
-	if #players < 1 or not telescope then return end
+	if #players < 1 or not telescopes then return end
 	if state.theme == THEME.BASE_CAMP then return end 
 	
 	local player = players[1]
-	if distance(player.uid, telescope) <= 1 and player:is_button_pressed(BUTTON.DOOR) then
-		-- Begin telescope interaction when the door button is pressed within a tile of the telescope.
-		telescope_activated = true
-		telescope_was_activated = true
-		-- Save the previous zoom level so that we can correct the camera's zoom when exiting the telescope.
-		telescope_previous_zoom = get_zoom_level()
-		-- Do not focus on the player while interacting with the telescope.
-		state.camera.focused_entity_uid = -1
-		local width, _ = size_of_level(level)
-		-- Set the x position of the camera to the half-way point of the level. The 2.5 is added due to the amount
-		-- of concrete border that is shown at the edges of the level.
-		state.camera.focus_x = width * 5 + 2.5
-		-- 30 is a good zoom level to fit a 4-room wide level width-wise. For larger or smaller levels, this value should be
-		-- adjusted. Also, it should be adjusted to fit height-wise if the level scrolls horizontally.
-		zoom(30)
-		
-		-- While looking through the telescope, the player should not be able to make any inputs. Instead, the movement
-		-- keys will move the camera and the bomb key will dismiss the telescope.
-		steal_input(player.uid)
-		
+	for _, telescope in ipairs(telescopes) do
+		if player.layer == get_entity(telescope).layer and distance(player.uid, telescope) <= 1 and player:is_button_pressed(BUTTON.DOOR) then
+			-- Begin telescope interaction when the door button is pressed within a tile of the telescope.
+			telescope_activated = true
+			telescope_was_activated = true
+			-- Save the previous zoom level so that we can correct the camera's zoom when exiting the telescope.
+			telescope_previous_zoom = get_zoom_level()
+			-- Do not focus on the player while interacting with the telescope.
+			state.camera.focused_entity_uid = -1
+			local width, _ = size_of_level(level)
+			-- Set the x position of the camera to the half-way point of the level. The 2.5 is added due to the amount
+			-- of concrete border that is shown at the edges of the level.
+			state.camera.focus_x = width * 5 + 2.5
+			-- 30 is a good zoom level to fit a 4-room wide level width-wise. For larger or smaller levels, this value should be
+			-- adjusted. Also, it should be adjusted to fit height-wise if the level scrolls horizontally.
+			zoom(30)
+			
+			-- While looking through the telescope, the player should not be able to make any inputs. Instead, the movement
+			-- keys will move the camera and the bomb key will dismiss the telescope.
+			steal_input(player.uid)
+			break	
+		end
 	end
 	if telescope_activated then
 		-- Gets a bitwise integer that contains the set of pressed buttons while the input is stolen.
@@ -551,7 +946,10 @@ end, SPAWN_TYPE.ANY, 0, ENT_TYPE.BG_DOOR)
 local idol
 function spawn_idol(x, y , layer)
 	local idol_uid
-	if run_idols_collected[level] then
+	if current_difficulty == DIFFICULTY.EASY then
+		spawn_entity(ENT_TYPE.ITEM_MADAMETUSK_IDOLNOTE, x, y, layer, 0, 0)
+		return true
+	elseif run_idols_collected[level] then
 		-- Do not spawn the idol if it has already been collected on this run. This should be pretty rare because the
 		-- the idol can only be deposited at the exit door, and the player cannot return to the level after exiting.
 		return true
@@ -708,8 +1106,6 @@ set_post_entity_spawn(function (entity)
 	tunx, tuny, tunlayer = x, y, layer
 	entity.health = 1
 	entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
-	entity.flags = set_flag(entity.flags, ENT_FLAG.PICKUPABLE)
-	entity.flags = set_flag(entity.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
 	entity.flags = set_flag(entity.flags, ENT_FLAG.FACING_LEFT)
 	
 	-- Move Tun off-screen to kill her without the player seeing or hearing.
@@ -723,6 +1119,15 @@ set_callback(function()
 		if kill_tun_plz.health == 0 then
 			kill_tun_plz.flags = clr_flag(kill_tun_plz.flags, ENT_FLAG.INVISIBLE)
 			kill_tun_plz.flags = set_flag(kill_tun_plz.flags, ENT_FLAG.FACING_LEFT)
+			if current_difficulty == DIFFICULTY.EASY then
+				-- Do not allow Tun to be picked up in easy mode; the sun challenge should be unavailable.
+				kill_tun_plz.flags = clr_flag(kill_tun_plz.flags, ENT_FLAG.PICKUPABLE)
+				kill_tun_plz.flags = clr_flag(kill_tun_plz.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
+			else
+				-- Allow the player to pick up Tun to activate the sun challenge.
+				kill_tun_plz.flags = set_flag(kill_tun_plz.flags, ENT_FLAG.PICKUPABLE)
+				kill_tun_plz.flags = set_flag(kill_tun_plz.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
+			end
 			move_entity(kill_tun_plz.uid, tunx, tuny, tunlayer, 0, 0)
 			kill_tun_plz = nil
 		end
@@ -735,18 +1140,31 @@ set_pre_tile_code_callback(function(x, y, layer)
 	return true
 end, "houyibow")
 
+local dead_ana_pls_kill
 define_tile_code("ana_spelunky")
 set_pre_tile_code_callback(function(x, y, layer)
-	local ana_uid = spawn_entity(ENT_TYPE.CHAR_ANA_SPELUNKY, x, y, layer, 0, 0)
+	local ana_uid = spawn_entity(ENT_TYPE.MONS_CAVEMAN, x, y, layer, 0, 0)
 	local ana = get_entity(ana_uid)
+	local ana_texture = ana:get_texture()
+	local ana_texture_definition = get_texture_definition(ana_texture)
+	ana_texture_definition.texture_path = "Data/Textures/ana_dead2.png"
+	local new_texture = define_texture(ana_texture_definition)
+	ana:set_texture(new_texture)
 	-- We must kill Ana too, otherwise we can't get the bow she brought to the challenge room. :(
 	ana.health = 0
 	ana.flags = clr_flag(ana.flags, ENT_FLAG.PICKUPABLE)
 	ana.flags = clr_flag(ana.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
 	ana.flags = set_flag(ana.flags, ENT_FLAG.TAKE_NO_DAMAGE)
 	ana.flags = set_flag(ana.flags, ENT_FLAG.DEAD)
+	dead_ana_pls_kill = ana
 	return true
 end, "ana_spelunky")
+
+set_callback(function()
+	if not dead_ana_pls_kill then return end
+	-- Kill ana on each frame in case a necromancer revives her.
+	dead_ana_pls_kill.health = 0
+end, ON.FRAME)
 
 local challenge_reward_position_x
 local challenge_reward_position_y
@@ -1015,8 +1433,12 @@ end, ON.FRAME)
 set_post_entity_spawn(function (entity)
 	if level == VOLCANA_LEVEL then
 		-- Do not spawn magma men in the volcana lava.
-		entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
-		move_entity(entity.uid, 1000, 0, 0, 0)
+		local x, y, layer = get_position(entity.uid)
+		local lavas = get_entities_at(0, MASK.LAVA, x, y, layer, 1)
+		if #lavas > 0 then
+			entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
+			move_entity(entity.uid, 1000, 0, 0, 0)
+		end
 	end
 end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_MAGMAMAN)
 
@@ -1083,13 +1505,13 @@ set_post_entity_spawn(function (entity)
 	end
 end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_MERCHANT)
 
--- A character (Ana) that will be spoken to when walking near.
+-- A character (Ana) that will be spoken to when walking near (she is actually a Caveman so she doesn't crash the game).
 local dialog_ana
 set_post_entity_spawn(function (entity)
 	if level == SUNKEN_LEVEL and not dialog_ana then
 		dialog_ana = entity
 	end
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.CHAR_ANA_SPELUNKY)
+end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_CAVEMAN)
 
 local hasDisplayedDialog = false
 set_callback(function ()
@@ -1188,9 +1610,15 @@ local started = false
 set_callback(function ()
     if state.theme == THEME.BASE_CAMP then return end
 	if started then 
-		time_total = state.time_total
-		
-		save_current_run_stats()
+		if hardcore_enabled then
+			-- Reset the time when hardcore is enabled; the run is going to be reset.
+			time_total = 0
+		else
+			-- Save the time on reset so we can keep the timer going.
+			time_total = state.time_total
+			
+			save_current_run_stats()
+		end
 		save_data()
 	end
 end, ON.RESET)
@@ -1281,11 +1709,13 @@ set_callback(function ()
 	state.world = level + 1
 	state.level = 1
 	
-	-- Settting the _start properties of the state will ensure that Instant Restarts will take the player back to the
-	-- current level, instead of going to the starting level.
-	state.world_start = world_for_level(level)
-	state.theme_start = theme_for_level(level)
-	state.level_start = level_for_level(level)
+	if not hardcore_enabled then
+		-- Setting the _start properties of the state will ensure that Instant Restarts will take the player back to the
+		-- current level, instead of going to the starting level.
+		state.world_start = world_for_level(level)
+		state.theme_start = theme_for_level(level)
+		state.level_start = level_for_level(level)
+	end
 
 	local next_level = level + 1
 	local exit_uids = get_entities_by_type(ENT_TYPE.FLOOR_DOOR_EXIT)
@@ -1322,14 +1752,15 @@ end, ON.POST_LEVEL_GENERATION)
 -- Saves the current state of the run so that it can be continued later if exited.
 function save_current_run_stats()
 	time_total = state.time_total
-	if initial_level == first_level and state.theme ~= THEME.BASE_CAMP and started then
-		saved_run_attempts = attempts
-		saved_run_idol_count = idols
-		saved_run_level = level
-		saved_run_time = time_total
-		saved_run_idols_collected = run_idols_collected
-		has_saved_run = true
-		
+	-- Save the current run only if there is a run in progress that did not start from a shorcut, and harcore mode is disabled.
+	if initial_level == first_level and not hardcore_enabled and state.theme ~= THEME.BASE_CAMP and started then
+		local saved_run = current_saved_run()
+		saved_run.saved_run_attempts = attempts
+		saved_run.saved_run_idol_count = idols
+		saved_run.saved_run_level = level
+		saved_run.saved_run_time = time_total
+		saved_run.saved_run_idols_collected = run_idols_collected
+		saved_run.has_saved_run = true
 	end
 	
 end
@@ -1391,11 +1822,25 @@ function clear_variables()
 	sunken_sign = nil
 	continue_door = nil
 	continue_sign = nil
+	hard_sign = nil
+	easy_sign = nil
+	normal_sign = nil
+	hardcore_sign = nil
+	tunnel_x = nil
+	tunnel_y = nil
+	tunnel_layer = nil
+	tunnel = nil
+	dead_ana_pls_kill = nil
+	
+	player_near_easy_sign = false
+	player_near_hard_sign = false
+	player_near_normal_sign = false
+	player_near_hardcore_sign = false
 	
 	if telescope_previous_zoom then
 		zoom(telescope_previous_zoom)
 	end
-	telescope = nil
+	telescopes = {}
 	telescope_activated = false 
 	telescope_was_activated = -1
 	telescope_previous_zoom = nil
@@ -1415,9 +1860,16 @@ end, ON.PRE_LOAD_LEVEL_FILES)
 
 set_callback(function ()
 	level = level + 1
+	
+	-- Update stats for the current difficulty mode.
+	local stats = current_stats()
+	local stats_hardcore = current_hardcore_stats()
 	-- Update the PB if the new level has not been reached yet.
-	if (not best_level or level > best_level) and initial_level == first_level then
-		best_level = level
+	if (not stats.best_level or level > stats.best_level) and initial_level == first_level then
+		stats.best_level = level
+	end
+	if hardcore_enabled and (not stats_hardcore.best_level or level > stats_hardcore.best_level) and initial_level == first_level then
+		stats_hardcore.best_level = level
 	end
 	if level >= max_level + 1 then
 		if initial_level == first_level then
@@ -1425,42 +1877,64 @@ set_callback(function ()
 			-- run started on the first level. This excludes shortcuts, but does not exclude continuing a run, since
 			-- continuing sets the initial level to the first level.
 			win = true
-			completions = completions + 1
+			stats.completions = stats.completions + 1
 			completion_time = time_total
 			completion_deaths = attempts - 1
 			completion_idols = idols
 			
-			has_saved_run = false
-			saved_run_attempts = nil
-			saved_run_idol_count = nil
-			saved_run_idols_collected = nil
-			saved_run_level = nil
-			saved_run_time = nil
-
-			if not best_time or best_time == 0 or completion_time < best_time then
-				best_time = completion_time
+			if hardcore_enabled then
+				stats_hardcore.completions = stats_hardcore.completions + 1
+			else
+				-- Clear the saved run for the current difficulty if hardcore is disabled.
+				local saved_run = current_saved_run()
+				saved_run.has_saved_run = false
+				saved_run.saved_run_attempts = nil
+				saved_run.saved_run_idol_count = nil
+				saved_run.saved_run_idols_collected = {}
+				saved_run.saved_run_level = nil
+				saved_run.saved_run_time = nil
+			end
+			
+			if not stats.best_time or stats.best_time == 0 or completion_time < stats.best_time then
+				stats.best_time = completion_time
 				completion_time_new_pb = true
-				best_time_idol_count = idols
-				best_time_death_count = attempts - 1
+				if current_difficulty ~= DIFFICULTY.EASY then
+					stats.best_time_idol_count = idols
+				end
+				stats.best_time_death_count = completion_deaths
 			else
 				completion_time_new_pb = false
 			end
 			
-			if idols == max_level + 1 then
-				max_idol_completions = max_idol_completions + 1
-				if not max_idol_best_time or max_idol_best_time == 0 or completion_time < max_idol_best_time then
-					max_idol_best_time = completion_time
+			if hardcore_enabled and (not stats_hardcore.best_time or stats_hardcore.best_time == 0 or completion_time < stats_hardcore.best_time) then
+				stats_hardcore.best_time = completion_time
+				completion_time_new_pb = true
+				if current_difficulty ~= DIFFICULTY.EASY then
+					stats_hardcore.best_time_idol_count = idols
 				end
 			end
 			
-			if not least_deaths_completion or completion_deaths < least_deaths_completion or (completion_deaths == least_deaths_completion and completion_time < least_deaths_completion_time) then
-				if not least_deaths_completion or completion_deaths < least_deaths_completion then
+			if idols == #levels and current_difficulty ~= DIFFICULTY.EASY then
+				stats.max_idol_completions = stats.max_idol_completions + 1
+				if not stats.max_idol_best_time or stats.max_idol_best_time == 0 or completion_time < stats.max_idol_best_time then
+					stats.max_idol_best_time = completion_time
+				end
+				if hardcore_enabled then
+					stats_hardcore.max_idol_completions = stats_hardcore.max_idol_completions + 1
+					if not stats_hardcore.max_idol_best_time or stats_hardcore.max_idol_best_time == 0 or completion_time < stats_hardcore.max_idol_best_time then
+						stats_hardcore.max_idol_best_time = completion_time
+					end
+				end
+			end
+			
+			if not stats.least_deaths_completion or completion_deaths < stats.least_deaths_completion or (completion_deaths == stats.least_deaths_completion and completion_time < stats.least_deaths_completion_time) then
+				if not stats.least_deaths_completion or completion_deaths < stats.least_deaths_completion then
 					completion_deaths_new_pb = true
 				end
-				least_deaths_completion = completion_deaths
-				least_deaths_completion_time = completion_time
+				stats.least_deaths_completion = completion_deaths
+				stats.least_deaths_completion_time = completion_time
 				if attempts == 1 then
-					deathless_completions = deathless_completions + 1
+					stats.deathless_completions = stats.deathless_completions + 1
 				end
 			else
 				completion_deaths_new_pb = false
@@ -1491,8 +1965,21 @@ end, ON.GAMEFRAME)
 set_callback(function ()
 	-- Update the PB if the new level has not been reached yet. This is only really for the first time entering Dwelling,
 	-- since other times ON.RESET will not have an increased level from the best_level.
-	if (not best_level or level > best_level) and initial_level == first_level then
-		best_level = level
+	local stats = current_stats()
+	local stats_hardcore = current_hardcore_stats()
+	if (not stats.best_level or level > stats.best_level) and initial_level == first_level then
+		stats.best_level = level
+	end
+	if hardcore_enabled and (not stats_hardcore.best_level or level > stats_hardcore.best_level) and initial_level == first_level then
+		stats_hardcore.best_level = level
+	end
+
+	if hardcore_enabled then
+		-- Reset the level and progress to the initial_level if reseting in hardcore mode.
+		level = initial_level
+		run_idols_collected = {}
+		idols = 0
+		attempts = 0
 	end
 end, ON.RESET)
 
@@ -1546,6 +2033,11 @@ set_callback(function (ctx)
     local y = 0
 	if not has_seen_base_camp then return end
 	
+	-- Display stats, or a win screen, for the current difficulty mode and current saved run.
+	local saved_run = current_saved_run()
+	local stats = current_stats()
+	local stats_hardcore = current_hardcore_stats()
+	
     if win then
 		-- Draw a black screen to cover the game.
         ctx:draw_rect_filled(-1, 1, 1, -1, 0, rgba(0, 0, 0, 255))
@@ -1554,17 +2046,27 @@ set_callback(function (ctx)
 		ctx:draw_image_rotated(image, x - w / 2, y + h / 2, x+w/2, y-h/2, 0, 0, 1, 1, 0xffffffff, -math.pi/2, 0, 0)
 		local texts = {}
 		texts[#texts+1] = 'Congratulations!'
+		if current_difficulty == DIFFICULTY.EASY then
+			texts[#texts+1] = 'Easy completion'
+		elseif current_difficulty == DIFFICULTY.HARD then
+			texts[#texts+1] = 'Hard completion'
+		end
+		if hardcore_enabled then
+			texts[#texts+1] = 'Hardcore Victory!'
+		end
 		texts[#texts+1] = ''
 		if completion_deaths_new_pb or completion_time_new_pb then
 			texts[#texts+1] = 'New PB!!'
 		end
 		texts[#texts+1] = f'Time: {format_time(completion_time)}'
-		texts[#texts+1] = f'Deaths: {completion_deaths}'
+		if not hardcore_enabled then
+			texts[#texts+1] = f'Deaths: {completion_deaths}'
+		end
 		local all_idols_text = ""
 		if completion_idols == max_level + 1 then
 			all_idols_text = " (All Idols!)"
 		end
-		if completion_idols > 0 then
+		if current_difficulty ~= DIFFICULTY.EASY and completion_idols > 0 then
 			texts[#texts+1] = f'Idols: {completion_idols}{all_idols_text}'
 		end
 		texts[#texts+1] = ''
@@ -1578,21 +2080,34 @@ set_callback(function (ctx)
 		if completion_deaths_new_pb then
 			deaths_pb_text = ' (New PB!)'
 		end
-		texts[#texts+1] = f'Fastest time: {format_time(best_time)}{time_pb_text}'
-		texts[#texts+1] = f'Least deaths: {least_deaths_completion}{deaths_pb_text}'
-		if max_idol_best_time and max_idol_best_time > 0 then
-			texts[#texts+1] = f'Fastest all idols: {format_time(max_idol_best_time)}'
+		if hardcore_enabled then
+			texts[#texts+1] = f'Fastest time: {format_time(stats_hardcore.best_time)}{time_pb_text}'
+		
+			if current_difficulty ~= DIFFICULTY.EASY and stats_hardcore.max_idol_best_time and stats_hardcore.max_idol_best_time > 0 then
+				texts[#texts+1] = f'Fastest all idols: {format_time(stats_hardcore.max_idol_best_time)}'
+			end
+		else
+			texts[#texts+1] = f'Fastest time: {format_time(stats.best_time)}{time_pb_text}'
+			texts[#texts+1] = f'Least deaths: {stats.least_deaths_completion}{deaths_pb_text}'
+			
+			if current_difficulty ~= DIFFICULTY.EASY and stats.max_idol_best_time and stats.max_idol_best_time > 0 then
+				texts[#texts+1] = f'Fastest all idols: {format_time(stats.max_idol_best_time)}'
+			end
 		end
-		if deathless_completions and deathless_completions > 0 and least_deaths_completion_time and least_deaths_completion_time > 0 then
-			texts[#texts+1] = f'Fastest deathless: {format_time(least_deaths_completion_time)}'
+		if not hardcore_enabled and stats.deathless_completions and stats.deathless_completions > 0 and stats.least_deaths_completion_time and stats.least_deaths_completion_time > 0 then
+			texts[#texts+1] = f'Fastest deathless: {format_time(stats.least_deaths_completion_time)}'
 		end
 		texts[#texts+1] = ''
-		texts[#texts+1] = f'Completions: {completions}'
-		if deathless_completions and deathless_completions > 0 then
-			texts[#texts+1] = f'Deathless completions: {deathless_completions}'
+		texts[#texts+1] = f'Completions: {stats.completions}'
+		if hardcore_enabled then
+			texts[#texts+1] = f'Hardcore completions: {stats_hardcore.completions}'
+		elseif stats.deathless_completions and stats.deathless_completions > 0 then
+			texts[#texts+1] = f'Deathless completions: {stats.deathless_completions}'
 		end
-		if max_idol_completions and max_idol_completions > 0 then
-			texts[#texts+1] = f'All idol completions: {max_idol_completions}'
+		if current_difficulty ~= DIFFICULTY.EASY and hardcore_enabled and stats_hardcore.max_idol_completions and stats_hardcore.max_idol_completions > 0 then
+			texts[#texts+1] = f'All idol hardcore completions: {stats_hardcore.max_idol_completions}'
+		elseif current_difficulty ~= DIFFICULTY.EASY and not hardcore_enabled and stats.max_idol_completions and stats.max_idol_completions > 0 then
+			texts[#texts+1] = f'All idol completions: {stats.max_idol_completions}'
 		end
 		
 		local texty = .79
@@ -1604,78 +2119,156 @@ set_callback(function (ctx)
 			texty = texty + th
 		end
 	elseif state.theme == THEME.BASE_CAMP then
-		local text
-		local top_text
+		local texts = {}
+		if hardcore_enabled and current_difficulty == DIFFICULTY.EASY then
+			texts[#texts+1] = 'Easy mode (Hardcore)'
+		elseif hardcore_enabled and current_difficulty == DIFFICULTY.HARD then
+			texts[#texts+1] = 'Hard mode (Hardcore)'
+		elseif hardcore_enabled then
+			texts[#texts+1] = 'Hardcore'
+		elseif current_difficulty == DIFFICULTY.EASY then
+			texts[#texts+1] = 'Easy mode'
+		elseif current_difficulty == DIFFICULTY.HARD then
+			texts[#texts+1] = 'Hard mode'
+		end
 		if continuing_run then
-			top_text = "Continue run from " .. title_of_level(saved_run_level)
-			text = " Time: " .. format_time(saved_run_time) .. " Deaths: " .. (saved_run_attempts)
-			if saved_run_idol_count > 0 then
-				text = text .. " Idols: " .. saved_run_idol_count
+			texts[#texts+1] = "Continue run from " .. title_of_level(saved_run.saved_run_level)
+			local text = " Time: " .. format_time(saved_run.saved_run_time) .. " Deaths: " .. (saved_run.saved_run_attempts)
+			if saved_run.saved_run_idol_count > 0 then
+				text = text .. " Idols: " .. saved_run.saved_run_idol_count
 			end
+			texts[#texts+1] = text
 		elseif initial_level ~= first_level then
-			text = "Shortcut to " .. title_of_level(initial_level) .. " trial"
-		else
-			if completions > 0 then
+			texts[#texts+1] = "Shortcut to " .. title_of_level(initial_level) .. " trial"
+		elseif hardcore_enabled then
+			if stats_hardcore.completions and stats_hardcore.completions > 0 then
 				idol_text = ""
-				if best_time_idol_count == 1 then
-					idol_text = f' (1 idol)'
-				elseif best_time_idol_count > 1 then
-					idol_text = f' ({best_time_idol_count} idols)'
+				if current_difficulty ~= DIFFICULTY.EASY then
+					if stats_hardcore.best_time_idol_count == 1 then
+						idol_text = f' (1 idol)'
+					elseif stats_hardcore.best_time_idol_count > 1 then
+						idol_text = f' ({stats_hardcore.best_time_idol_count} idols)'
+					end
 				end
-				completionist_text = ""
-				if max_idol_completions > 0 then
-				--	completionist_text = f' All idols wins: {max_idol_completions} PB: {format_time(max_idol_best_time)}'
-				end
-				text = f'Wins: {completions}  PB: {format_time(best_time)}{idol_text}{completionist_text}'
-			elseif best_level then
-				text = f'PB: {title_of_level(best_level)}'
+				texts[#texts+1] = f'Wins: {stats_hardcore.completions}  PB: {format_time(stats_hardcore.best_time)}{idol_text}'
+			elseif stats_hardcore.best_level then
+				texts[#texts+1] = f'PB: {title_of_level(stats_hardcore.best_level)}'
 			else
-				text = "PB: N/A"
+				texts[#texts+1] = "PB: N/A"
+			end
+		else
+			if stats.completions and stats.completions > 0 then
+				idol_text = ""
+				if current_difficulty ~= DIFFICULTY.EASY then
+					if stats.best_time_idol_count == 1 then
+						idol_text = f' (1 idol)'
+					elseif stats.best_time_idol_count > 1 then
+						idol_text = f' ({stats.best_time_idol_count} idols)'
+					end
+				end
+				texts[#texts+1] = f'Wins: {stats.completions}  PB: {format_time(stats.best_time)}{idol_text}'
+			elseif stats.best_level then
+				texts[#texts+1] = f'PB: {title_of_level(stats.best_level)}'
+			else
+				texts[#texts+1] = "PB: N/A"
 			end
 		end
-        local tw, th = draw_text_size(28, text)
-		ctx:draw_text(0 - tw / 2, -0.935, 28, text, text_color)
 		
-		if top_text then
-			local topw, _ = draw_text_size(28, top_text)
-			ctx:draw_text(0 - topw / 2, -0.935 - th, 28, top_text, text_color)
+		local texty = -0.935
+		for i = #texts,1,-1 do
+			local text = texts[i]
+			local tw, th = draw_text_size(28, text)
+			ctx:draw_text(0 - tw / 2, texty, 28, text, text_color)
+			texty = texty - th
 		end
 		return
+	elseif initial_level == first_level and hardcore_enabled then
+		local texts = {}
+		if current_difficulty == DIFFICULTY.EASY then
+			texts[#texts+1] = 'Easy mode (Hardcore)'
+		elseif current_difficulty == DIFFICULTY.HARD then
+			texts[#texts+1] = 'Hard mode (Hardcore)'
+		else
+			texts[#texts+1] = 'Hardcore'
+		end
+		if idols > 0 then
+			texts[#texts+1] = f'Idols: {idols}'
+		end
 		
+		local pb_text
+		local wins_text = ""
+		if stats_hardcore.completions > 0 and format_time(stats_hardcore.best_time) then
+			local best_idol_text = ""
+			if current_difficulty ~= DIFFICULTY.EASY then
+				if stats_hardcore.best_time_idol_count == 1 then
+					best_idol_text = " (1 idol)"
+				elseif stats_hardcore.best_time_idol_count > 1 then
+					best_idol_text = f' ({stats_hardcore.best_time_idol_count} idols)'
+				end
+			end
+			pb_text = f'{format_time(stats_hardcore.best_time)}{best_idol_text}'
+			wins_text = f'Wins: {stats_hardcore.completions}  '
+		elseif stats_hardcore.best_level then
+			pb_text = title_of_level(stats_hardcore.best_level)
+		else
+			pb_text = 'N/A'
+		end
+		texts[#texts+1] = f'{wins_text}PB: {pb_text}'
+		if current_difficulty ~= DIFFICULTY.EASY and stats_hardcore.max_idol_completions > 0 then
+			texts[#texts+1] = f'All idols wins: {stats_hardcore.max_idol_completions} PB: {format_time(stats_hardcore.max_idol_best_time)}'
+		end
+		
+		local texty = -0.935
+		for i = #texts,1,-1 do
+			local text = texts[i]
+			local tw, th = draw_text_size(28, text)
+			ctx:draw_text(0 - tw / 2, texty, 28, text, text_color)
+			texty = texty - th
+		end
     elseif initial_level == first_level then
+		local texts = {}
+		if current_difficulty == DIFFICULTY.EASY then
+			texts[#texts+1] = 'Easy mode'
+		elseif current_difficulty == DIFFICULTY.HARD then
+			texts[#texts+1] = 'Hard mode'
+		end
+		
 		local pb_text
 		local wins_text = ""
 		local idols_text = ""
-		if completions > 0 and format_time(best_time) then
+		if stats.completions > 0 and format_time(stats.best_time) then
 			local best_idol_text = ""
-			if best_time_idol_count == 1 then
-				best_idol_text = f' (1 idol)'
-			elseif best_time_idol_count > 1 then
-				best_idol_text = f' ({best_time_idol_count} idols)'
+			if current_difficulty ~= DIFFICULTY.EASY then
+				if stats.best_time_idol_count == 1 then
+					best_idol_text = f' (1 idol)'
+				elseif stats.best_time_idol_count > 1 then
+					best_idol_text = f' ({stats.best_time_idol_count} idols)'
+				end
 			end
-			pb_text = f'{format_time(best_time)}{best_idol_text}'
-			wins_text = f'Wins: {completions}  '
-		elseif best_level then
-			pb_text = title_of_level(best_level)
+			pb_text = f'{format_time(stats.best_time)}{best_idol_text}'
+			wins_text = f'Wins: {stats.completions}  '
+		elseif stats.best_level then
+			pb_text = title_of_level(stats.best_level)
 		else
 			pb_text = 'N/A'
 		end
 		if idols > 0 then
 			idols_text = f'     Idols: {idols}'
 		end
-		local text = f'Deaths: {attempts - 1}{idols_text}'
-		local win_message = f'{wins_text}PB:  {pb_text}'
+		texts[#texts+1] = f'Deaths: {attempts - 1}{idols_text}'
+		texts[#texts+1] = f'{wins_text}PB: {pb_text}'
 		local message_offset = 0
-		if max_idol_completions > 0 then
-			local completionist_text = f'All idol wins: {max_idol_completions} PB: {format_time(max_idol_best_time)}'
-			local wg, hg = draw_text_size(28, completionist_text)
-			ctx:draw_text(0 - wg / 2, -0.935, 28, completionist_text, text_color)
-			message_offset = hg
+		if current_difficulty ~= DIFFICULTY.EASY and stats.max_idol_completions > 0 then
+			texts[#texts+1] = f'All idol wins: {stats.max_idol_completions} PB: {format_time(stats.max_idol_best_time)}'
 		end
-        local tw, _ = draw_text_size(28, text)
-		local ww, wh = draw_text_size(28, win_message)
-        ctx:draw_text(0 - tw / 2, -0.935 - wh - message_offset, 28, text, text_color)
-		ctx:draw_text(0 - ww / 2, -0.935 - message_offset, 28, win_message, text_color)
+		
+		local texty = -0.935
+		for i = #texts,1,-1 do
+			local text = texts[i]
+			local tw, th = draw_text_size(28, text)
+			ctx:draw_text(0 - tw / 2, texty, 28, text, text_color)
+			texty = texty - th
+		end
 	else
 		local text = f'{title_of_level(initial_level)} shortcut practice'
         local tw, _ = draw_text_size(28, text)
@@ -1696,17 +2289,32 @@ set_callback(function (ctx)
 
     if load_data_str ~= '' then
         local load_data = json.decode(load_data_str)
-        attempts = load_data.attempts
-        best_time = load_data.best_time
-		best_time_idol_count = load_data.best_time_idols
-		best_time_death_count = load_data.best_time_death_count
-		best_level = load_data.best_level
-        completions = load_data.completions
-		max_idol_completions = load_data.max_idol_completions or 0
-		max_idol_best_time = load_data.max_idol_best_time or 0
-		deathless_completions = load_data.deathless_completions or 0
-		least_deaths_completion = load_data.least_deaths_completion
-		least_deaths_completion_time = load_data.least_deaths_completion_time
+		local load_version = load_data.version
+		if load_data.difficulty then
+			current_difficulty = load_data.difficulty
+		end
+		if not load_version then 
+			normal_stats.best_time = load_data.best_time
+			normal_stats.best_time_idol_count = load_data.best_time_idols
+			normal_stats.best_time_death_count = load_data.best_time_death_count
+			normal_stats.best_level = load_data.best_level
+			normal_stats.completions = load_data.completions or 0
+			normal_stats.max_idol_completions = load_data.max_idol_completions or 0
+			normal_stats.max_idol_best_time = load_data.max_idol_best_time or 0
+			normal_stats.deathless_completions = load_data.deathless_completions or 0
+			normal_stats.least_deaths_completion = load_data.least_deaths_completion
+			normal_stats.least_deaths_completion_time = load_data.least_deaths_completion_time
+		else
+			if load_data.stats then
+				normal_stats = load_data.stats
+			end
+			if load_data.easy_stats then
+				easy_stats = load_data.easy_stats
+			end
+			if load_data.hard_stats then
+				hard_stats = load_data.hard_stats
+			end
+		end
 		local idol_levels = load_data.idol_levels
 		local saved_idols_collected = {}
 		if idol_levels.dwelling then
@@ -1723,14 +2331,24 @@ set_callback(function (ctx)
 		end
 		idols_collected = saved_idols_collected
 		total_idols = load_data.total_idols
+		hardcore_enabled = load_data.hardcore_enabled
+		hardcore_previously_enabled = load_data.hpe
+		if load_data.hardcore_stats then
+			hardcore_stats = load_data.hardcore_stats
+		end
+		if load_data.hardcore_stats_easy then
+			hardcore_stats_easy = load_data.hardcore_stats_easy
+		end
+		if load_data.hardcore_stats_hard then
+			hardcore_stats_hard = load_data.hardcore_stats_hard
+		end
 		
-		local saved_run_data = load_data.saved_run_data
-		if saved_run_data then
-			has_saved_run = true
-			saved_run_level = saved_run_data.level
-			saved_run_attempts = saved_run_data.attempts
-			saved_run_idol_count = saved_run_data.idols
-			saved_run_time = saved_run_data.run_time
+		function load_saved_run_data(saved_run, saved_run_data)
+			saved_run.has_saved_run = saved_run_data.has_saved_run or not load_version
+			saved_run.saved_run_level = saved_run_data.level
+			saved_run.saved_run_attempts = saved_run_data.attempts
+			saved_run.saved_run_idol_count = saved_run_data.idols
+			saved_run.saved_run_time = saved_run_data.run_time
 			local saved_idol_levels = {}
 			local saved_data_idol_levels = saved_run_data.idol_levels
 			if saved_data_idol_levels.dwelling then
@@ -1745,7 +2363,20 @@ set_callback(function (ctx)
 			if saved_data_idol_levels.sunken then
 				saved_idol_levels[SUNKEN_LEVEL] = true
 			end
-			saved_run_idols_collected = saved_idol_levels
+			saved_run.saved_run_idols_collected = saved_idol_levels
+		end
+		
+		local easy_saved_run_data = load_data.easy_saved_run
+		local saved_run_data = load_data.saved_run_data
+		local hard_saved_run_data = load_data.hard_saved_run
+		if saved_run_data then
+			load_saved_run_data(normal_saved_run, saved_run_data)
+		end
+		if easy_saved_run_data then
+			load_saved_run_data(easy_saved_run, easy_saved_run_data)
+		end
+		if hard_saved_run_data then
+			load_saved_run_data(hard_saved_run, hard_saved_run_data)
 		end
 		has_seen_ana_dead = load_data.has_seen_ana_dead
     end
@@ -1758,38 +2389,45 @@ function force_save(ctx)
 		temple = idols_collected[TEMPLE_LEVEL],
 		sunken = idols_collected[SUNKEN_LEVEL],
 	}
-	local saved_run_data = nil
-	if has_saved_run then
+	
+	function saved_run_datar(saved_run)
+		if not saved_run then return nil end
 		local saved_run_idol_levels = {
-			dwelling = saved_run_idols_collected[DWELLING_LEVEL],
-			volcana = saved_run_idols_collected[VOLCANA_LEVEL],
-			temple = saved_run_idols_collected[TEMPLE_LEVEL],
-			sunken = saved_run_idols_collected[SUNKEN_LEVEL],
+			dwelling = saved_run.saved_run_idols_collected[DWELLING_LEVEL],
+			volcana = saved_run.saved_run_idols_collected[VOLCANA_LEVEL],
+			temple = saved_run.saved_run_idols_collected[TEMPLE_LEVEL],
+			sunken = saved_run.saved_run_idols_collected[SUNKEN_LEVEL],
 		}
-		saved_run_data = {
-			level = saved_run_level,
-			attempts = saved_run_attempts,
-			idols = saved_run_idol_count,
+		local saved_run_data = {
+			has_saved_run = saved_run.has_saved_run,
+			level = saved_run.saved_run_level,
+			attempts = saved_run.saved_run_attempts,
+			idols = saved_run.saved_run_idol_count,
 			idol_levels = saved_run_idol_levels,
-			run_time = saved_run_time,
+			run_time = saved_run.saved_run_time,
 		}
+		return saved_run_data
 	end
+	local normal_saved_run_data = saved_run_datar(normal_saved_run)
+	local easy_saved_run_data = saved_run_datar(easy_saved_run)
+	local hard_saved_run_data = saved_run_datar(hard_saved_run)
     local save_data = {
-        attempts = attempts,
-        best_time = best_time,
-		best_time_idols = best_time_idol_count,
-		best_time_death_count = best_time_death_count,
-		best_level = best_level,
-        completions = completions,
-		max_idol_completions = max_idol_completions,
-		deathless_completions = deathless_completions,
-		max_idol_best_time = max_idol_best_time,
-		least_deaths_completion = least_deaths_completion,
-		least_deaths_completion_time = least_deaths_completion_time,
+		version = '1.3',
 		idol_levels = idol_levels,
 		total_idols = total_idols,
-		saved_run_data = saved_run_data,
+		saved_run_data = normal_saved_run_data,
+		easy_saved_run = easy_saved_run_data,
+		hard_saved_run = hard_saved_run_data,
+		stats = normal_stats,
+		easy_stats = easy_stats,
+		hard_stats = hard_stats,
 		has_seen_ana_dead = has_seen_ana_dead,
+		hardcore_enabled = hardcore_enabled,
+		difficulty = current_difficulty,
+		hpe = hardcore_previously_enabled,
+		hardcore_stats = hardcore_stats,
+		hardcore_stats_easy = hardcore_stats_easy,
+		hardcore_stats_hard = hardcore_stats_hard,
     }
 
     ctx:save(json.encode(save_data))

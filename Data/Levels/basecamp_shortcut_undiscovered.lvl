@@ -1,0 +1,93 @@
+// ------------------------------
+//  BASE CAMP (UNDISCOVERED SHORTCUT STATION)
+// ------------------------------
+
+// ------------------------------
+//  TILE CODES
+// ------------------------------
+
+\?empty						0
+\?floor						1
+\?surface_floor				2
+\?surface_hidden_floor		3
+\?minewood_floor			=
+\?ladder					L
+\?ladder_plat				P	// Ladder with platform across it
+\?platform					p
+\?door2						D	// Door to other Layer
+\?push_block				4
+
+\?treasure_chest			t
+\?crate_bombs				B
+\?crate_ropes				R
+
+\?water						w
+
+// ------------------------------
+//  TEMPLATES
+// ------------------------------
+//
+//  !ignore		Ignore the following template. This is to make building rooms easier.
+//  !flip		Flip the following template to make another. i.e. The following template = two templates.
+//  !onlyflip	Flip the following template (original is ignored)
+//  !dual		The next template contains both a frontal and back room
+//  !rare		The next template is rare (only 5% chance of a rare template being used).
+//  !hard		The next template is hard (only appear in the second two levels of the area).
+//  !liquid		The next template contains liquid (used to limit the number of liquid drops)
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom3-1
+////////////////////////////////////////////////////////////////////////////////
+
+\!ignore
+0000000000
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom3-2
+////////////////////////////////////////////////////////////////////////////////
+
+\!ignore
+0000000000
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom4-1 // SHORTCUT STATION
+////////////////////////////////////////////////////////////////////////////////
+
+\!ignore
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+1111111111
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom4-2
+////////////////////////////////////////////////////////////////////////////////
+
+\!ignore
+\!dual
+1111111111 XXXXXXXXXX
+1111111111 XXXXXXXXXX
+1111111111 XXXXXXXXXX
+1111111111 XXXXXXXXXX
+1111111=== XXXXXXXXXX
+1111111=00 XXXXXXX000
+1111111=0W XXXXXXX0LD
+1111111=== XXXXXXX0P=
