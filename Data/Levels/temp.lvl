@@ -18,6 +18,8 @@
 \-machine_wideroom_chance 0					// 1/N chance of spawning a machine wide room (default = 0)
 \-machine_tallroom_chance 0					// 1/N chance of spawning a machine tall room (default = 0)
 \-machine_rewardroom_chance 0				// 1/N chance of spawning a machine reward room (default = 0)
+\-background_chance 50						// 1/N chance of putting a wall background where it fits (default = 1)
+\-ground_background_chance 1				// 1/N chance of putting a ground background where it fits (default = 1)
 
 // ------------------------------
 //  LEVEL CHANCES
