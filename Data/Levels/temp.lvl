@@ -2,7 +2,6 @@
 //  JumpLunky
 // ------------------------------
 
-\-size 4 1									// level size in rooms
 \-back_room_chance 0						// % chance of a second room (default = 6%)
 \-back_room_interconnection_chance 0		// % chance of a second room interconnection (default = 20%)
 \-back_room_hidden_door_chance 0			// 1/N chance of a hidden door (default = 500)
