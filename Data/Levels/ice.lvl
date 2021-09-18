@@ -17,125 +17,32 @@
 \-machine_wideroom_chance 0					// 1/N chance of spawning a machine wide room (default = 0)
 \-machine_tallroom_chance 0					// 1/N chance of spawning a machine tall room (default = 0)
 \-machine_rewardroom_chance 0				// 1/N chance of spawning a machine reward room (default = 0)
-\-background_chance 6						// 1/N chance of putting a wall background where it fits (default = 1)
-\-ground_background_chance 5				// 1/N chance of putting a ground background where it fits (default = 1)
+\-background_chance 3						// 1/N chance of putting a wall background where it fits (default = 1)
+\-ground_background_chance 3				// 1/N chance of putting a ground background where it fits (default = 1)
 
-// ------------------------------
-//  LEVEL CHANCES
-// ------------------------------
-
-\%spike_ball_chance			0
-\%chain_blocks_chance		0
-\%pushblock_chance 			0	// Used both for powder kegs and push blocks
-\%leprechaun_chance			0	// 1/n chance that a Leprechaun will spawn
-
-// ------------------------------
-//  MONSTER CHANCES
-// ------------------------------
-
-\+bat			0					// 1/60 chance in each level, only appears on ceiling
-\+caveman		0	// 1/120 chance in level 1, 1/110 in level 2, etc.
-\+robot			0
-\+firebug		0					// this chance is only used on each piece of chain
-\+imp			0
-\+lavamander	0
-\+crittersnail	0
-
-
-// ------------------------------
-//  MASTER TILE CODES
-// ------------------------------
-
-\?chunk_air					6
-	
-\?empty						0
-\?floor						1
-\?floor%50					2	// 50% chance of floor, 50% chance of empty
-\?minewood_floor			=
-\?floor_hard				X	// Indestructible ("hard") floor
-//\?floor_hard%50%floor		Y	// 50% chance of hard floor, 50% chance of regular floor
-\?icefloor					c
-//\?icefloor%50				y
-\?adjacent_floor			Z	// Hard floor or empty depending on whether this leads to another second layer room
-\?ladder					L
-\?ladder_plat				P	// Ladder with platform across it
-\?platform					p
-\?door						9	// Exit or entrance
-\?door2						D	// Door to other Layer
-\?door2_secret				d	// Door to other Layer, with dirt/push block in front (20% chance for push block if there's a floor tile underneath)
-\?spikes					^
-\?upsidedown_spikes			v
-\?push_block				4
-\?falling_platform			F
-\?thinice					T
-//\?arrow_trap				?
-\?spring_trap				>
-\?forcefield				(
-\?timed_forcefield			)
-\?forcefield_top			'
-
-\?treasure					t	// Gold (30%), gem (30%), treasure chest (20%), crate (10%), bones/pot (5%), or nothing (5%)
-\?litwalltorch				O
-\?cookfire					r
-\?cursed_pot				u
-
-\?alien						J
-\?ufo						U
-//\?landmine				?
-\?yeti					y
-//\?empty_mech				?
-	
-\?altar						x	// Each side of the altar
-//\?idol						I	// Idol statue
-//\?idol_floor				i	// Idol block
-\?vault_wall				|	// Vault wall
-//\?coffin					g	// Character coffin (NPC/Player)
-	
-\?shop_sign					K
-\?shop_door					k
-\?lamp_hang					l
-\?shop_wall					.
-\?shop_item					S
-\?wanted_poster				W
-\?shopkeeper				$	// Shopkeeper and items
-
-//\?storage_guy				G	// Storage guy
-//\?storage_floor				q	// Storage floors
-\?autowalltorch				M
-
-\?clover					Q
-
-\?mothership_floor			m
-\?alienqueen				a
-\?shopkeeper_vat			V
-\?alien_generator			A
-
-\?eggplant_altar			h
-\?moai_statue				s
-\?eggplant_child			b
 
 // ------------------------------
 //  TILE CODES
 // ------------------------------
 
-\?empty								0
-\?minewood_floor								=
-\?floor						1
-\?entrance							E
-\?empty								F
-\?exit								e
-\?icefloor							c
-\?idol_reward						Q
-\?telescope							j
-\?telescope_left					g
-\?ice_turkey 							z
-\?ice_yeti					%
-\?ice_idol					i
-\?caveman				I
-\?thorn_vine				G
-
-
-
+\?empty                     0
+\?floor                     1
+\?floor_hard                X	// Indestructible ("hard") floor
+\?entrance                  E
+\?exit                      e
+\?icefloor                  c
+\?alien                     J
+\?ufo                       U
+\?yeti                      y
+\?spikes                    ^
+\?upsidedown_spikes         v
+\?thinice                   T
+\?spring_trap               >
+\?telescope                 j
+\?telescope_left            g
+\?ice_turkey                z
+\?ice_yeti                  %
+\?ice_idol                  i
 
 // ------------------------------
 //  TEMPLATES
@@ -148,14 +55,6 @@
 //  !rare		The next template is rare (only 5% chance of a rare template being used).
 //  !hard		The next template is hard (only appear in the second two levels of the area).
 //  !liquid		The next template contains liquid (used to limit the number of liquid drops)
-
-
-
-
-
-
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 \.setroom0_0
@@ -1021,11 +920,6 @@ ccccccc00v
 0000000000
 0000000000
 
-
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 \.setroom10-0
 ////////////////////////////////////////////////////////////////////////////////
@@ -1181,7 +1075,3 @@ ccccccc00v
 0000000000
 0000000000
 0000000000
-
-
-
-
