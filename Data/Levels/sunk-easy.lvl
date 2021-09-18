@@ -2,7 +2,6 @@
 //  JumpLunky
 // ------------------------------
 
-\-size 4 1									// level size in rooms
 \-back_room_chance 0						// % chance of a second room (default = 6%)
 \-back_room_interconnection_chance 0		// % chance of a second room interconnection (default = 20%)
 \-back_room_hidden_door_chance 0			// 1/N chance of a hidden door (default = 500)
@@ -49,13 +48,8 @@
 \?floor_hard						X
 \?entrance							E
 \?exit								e
-\?falling_platform					p
 \?ladder							L
 \?ladder_plat						P
-\?conveyorbelt_left					<
-\?conveyorbelt_right				>
-\?spikeball_trap					s
-\?lava								q
 \?laser_switch						R
 \?firefrog							F
 \?challenge_forcefield_switchable	3
@@ -69,7 +63,6 @@
 \?wanted_poster						W
 \?shop_sign							K
 \?shop_door							k
-\?sticky_trap						B
 \?houyibow							H
 \?lightarrow						a
 \?sunchallenge_generator			A
@@ -77,9 +70,23 @@
 \?ana_spelunky						y
 \?challenge_reward					Q
 \?eggsac							z
-\?water								m
-\?telescope							b
-\?kali_statue						@
+\?water                             m
+\?telescope                         b
+\?kali_statue                       @
+\?pipe                              p
+\?shop_sign                         K
+\?lamp_hang                         l
+\?shop_wall                         .
+\?wanted_poster                     W
+\?altar                             x	// Each side of the altar
+\?spikes                            ^
+\?door2                             D	// Door to other Layer
+\?giant_frog                        n
+\?guts_floor                        T
+\?regenerating_block                r
+\?bigspear_trap                     C
+\?sticky_trap                       B
+\?sunken_floor                      =
 
 // ------------------------------
 //  TEMPLATES
