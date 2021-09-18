@@ -37,27 +37,6 @@
 \?dialog_block				R
 \?telescope					j
 
-
-// ------------------------------
-//  LEVEL CHANCES
-// ------------------------------
-
-\%arrowtrap_chance 			0	// 35, 35, 25, 25
-\%totemtrap_chance 			0	// 35, 35, 35, 35
-\%pushblock_chance 			0
-
-// ------------------------------
-//  MONSTER CHANCES
-// ------------------------------
-
-\+snake					0		// 40
-\+bat					0
-\+caveman				0
-\+spider				0		// 80, 60, 60, 40
-\+hornedlizard			0		// 80, 60, 60, 40
-\+mole					0		// 75
-\+critterdungbeetle		0
-
 // ------------------------------
 //  TEMPLATES
 // ------------------------------
