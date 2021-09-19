@@ -1297,7 +1297,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local turkey = get_entity(turkey_uid)
 	turkey.inside = ENT_TYPE.MOUNT_TURKEY
 	turkey.animation_frame = 239
-	turkey.color.a = 150
+	turkey.color.a = 130
 	return true
 end, "ice_turkey")
 
@@ -1317,8 +1317,22 @@ set_pre_tile_code_callback(function(x, y, layer)
 	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	local yeti = get_entity(yeti_uid)
 	yeti.inside = ENT_TYPE.MONS_YETI
-	yeti.animation_frame = 172
-	yeti.color.a = 150
+
+	local texture_definition = TextureDefinition.new()
+	texture_definition.texture_path = "Data/Textures/monsters03.png"
+	texture_definition.width = 2048
+	texture_definition.height = 2048
+	texture_definition.tile_width = 128
+	texture_definition.tile_height = 128
+	texture_definition.sub_image_offset_x = 128 * 11 -- Let the computer do the math.
+	texture_definition.sub_image_offset_y = 128 * 4
+	texture_definition.sub_image_width = 128
+	texture_definition.sub_image_height = 128
+	local new_texture = define_texture(texture_definition)
+	yeti:set_texture(new_texture)
+
+	yeti.animation_frame = 0
+	yeti.color.a = 130
 	return true
 end, "ice_yeti")
 
@@ -1401,7 +1415,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 		idol.inside = ENT_TYPE.ITEM_IDOL
 		idol.animation_frame = 31
 	end
-	idol.color.a = 150
+	idol.color.a = 130
 	return true
 end, "ice_idol")
 
