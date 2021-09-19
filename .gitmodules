@@ -1,3 +1,6 @@
 [submodule "CustomLevels"]
 	path = CustomLevels
 	url = https://github.com/jaythebusinessgoose/CustomLevels
+[submodule "Telescopes"]
+	path = Telescopes
+	url = https://github.com/jaythebusinessgoose/Telescopes
