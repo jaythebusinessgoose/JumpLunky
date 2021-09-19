@@ -1290,14 +1290,14 @@ end, "firefrog")
 define_tile_code("ice_turkey")
 set_pre_tile_code_callback(function(x, y, layer)
 	-- Set the keep_entity properties so that we don't delete this entity with the procedural spawns.
-	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
 	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
 	local turkey_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
+	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	local turkey = get_entity(turkey_uid)
 	turkey.inside = ENT_TYPE.MOUNT_TURKEY
 	turkey.animation_frame = 239
 	turkey.color.a = 150
-	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	return true
 end, "ice_turkey")
 
@@ -1311,14 +1311,14 @@ end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MOUNT_TURKEY)
 define_tile_code("ice_yeti")
 set_pre_tile_code_callback(function(x, y, layer)
 	-- Set the keep_entity properties so that we don't delete this entity with the procedural spawns.
-	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
 	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
 	local yeti_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
+	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	local yeti = get_entity(yeti_uid)
 	yeti.inside = ENT_TYPE.MONS_YETI
 	yeti.animation_frame = 172
 	yeti.color.a = 150
-	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	return true
 end, "ice_yeti")
 
@@ -1384,14 +1384,15 @@ end
 define_tile_code("ice_idol")
 set_pre_tile_code_callback(function(x, y, layer)
 	-- Set the keep_entity properties so that we don't delete this entity with the procedural spawns.
-	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
 	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
 	if current_difficulty == DIFFICULTY.EASY or run_idols_collected[level] then
 		-- Do not spawn the idol in easy or if it has been collected.
 		return true
 	end
 	
+	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
 	local idol_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
+	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	local idol = get_entity(idol_uid)
 	if idols_collected[level] then
 		idol.inside = ENT_TYPE.ITEM_MADAMETUSK_IDOL
@@ -1401,7 +1402,6 @@ set_pre_tile_code_callback(function(x, y, layer)
 		idol.animation_frame = 31
 	end
 	idol.color.a = 150
-	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	return true
 end, "ice_idol")
 
