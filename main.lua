@@ -1068,32 +1068,6 @@ function file_name_for_level(level, difficulty)
 	return file_name
 end
 
-set_callback(function(ctx)
-	local file_name = file_name_for_level(level, current_difficulty)
-	if state.theme == THEME.BASE_CAMP or state.theme == 0 or not file_name then
-		custom_levels.unload_level()
-		return
-	end
-	local width, height = size_of_level(level)
-	custom_levels.load_level(file_name, width, height, ctx)
-end, ON.PRE_LOAD_LEVEL_FILES)
-
-
--- Create a bunch of room templates that can be used in lvl files to create rooms. The maximum
--- level size is 8x15, so we only create that many templates.
-local room_templates = {}
-for x = 0, 7 do
-	local room_templates_x = {}
-	for y = 0, 14 do
-		local room_template = define_room_template("setroom" .. y .. "_" .. x, ROOM_TEMPLATE_TYPE.NONE)
-		room_templates_x[y] = room_template
-	end
-	room_templates[x] = room_templates_x
-end
-local buffer_template = define_room_template("buffer", ROOM_TEMPLATE_TYPE.NONE)
-local buffer_hard_template = define_room_template("buffer_hard", ROOM_TEMPLATE_TYPE.NONE)
-local buffer_special_template = define_room_template("buffer_special", ROOM_TEMPLATE_TYPE.NONE)
-
 -- Returns size of the level in width, height.
 function size_of_level(level)
 	if level == TEMPLE_LEVEL then
@@ -1107,17 +1081,6 @@ function size_of_level(level)
 	end
 end
 
--- Returns how many subrooms down to begin the actual level in x, y. Returning an x offset other than 0 isn't really
--- fully supported, so could have some undefined results.
-function level_offset(level)
-	return 0, 0
-end
-
--- Returns the template that will be used to replace the rooms in the generated level.
-function buffer_template_for_level(level, layer)
-	return buffer_template
-end
-
 -- This doesn't actually create a shop template anymore, but it is used for swapping the backlayer door
 -- for a shop-themed door.
 function is_shop_template_for_level_at(level, x, y)
@@ -1129,32 +1092,15 @@ function is_shop_template_for_level_at(level, x, y)
 	return false
 end
 
-set_callback(function (ctx)
-	if state.theme == THEME.BASE_CAMP or true then return end
-	-- For some reason, Volcana (maybe other areas?) will crash if we try to replace one of its exit door layouts.
-	-- To avoid this crash, we offset the Y-position that we insert our generated level. We give it an offset of 4
-	-- typically so that we can add several rooms of floor between the top layer and our level. This way the player
-	-- does not see any of the generated level.
-	-- This offset is configurable in case there are other crashes that require the offset to be changed for a level
-	-- type.
-	-- The X-position's offset is also configurable, but the way it is written currently does not properly handle an
-	-- offset other than 0.
-	local width, height = size_of_level(level)
-	local offsetX, offsetY = level_offset(level)
-	state.height = height + offsetY
-	state.width = width + offsetX
-	local buffer = buffer_template_for_level(level)
-	for x = 0, width - 1 do
-		for y = 0, height - 1 do
-			ctx:set_room_template(x + offsetX, y + offsetY, LAYER.BACK, buffer_hard_template)
-			ctx:set_room_template(x + offsetX, y + offsetY, LAYER.FRONT, room_templates[x][y])
-       	end
-		for y = 0, offsetY - 1 do
-			ctx:set_room_template(x, y , LAYER.BACK, buffer_hard_template)
-			ctx:set_room_template(x, y, LAYER.FRONT, buffer_hard_template)
-		end
+set_callback(function(ctx)
+	local file_name = file_name_for_level(level, current_difficulty)
+	if state.theme == THEME.BASE_CAMP or state.theme == 0 or not file_name then
+		custom_levels.unload_level()
+		return
 	end
-end, ON.POST_ROOM_GENERATION)
+	local width, height = size_of_level(level)
+	custom_levels.load_level(file_name, width, height, ctx)
+end, ON.PRE_LOAD_LEVEL_FILES)
 
 ---------------------------
 ---- /LEVEL GENERATION ----
@@ -1248,12 +1194,9 @@ set_callback(function()
 		
 		-- Calculate the top and bottom of the level to stop the camera from moving.
 		-- We don't want to show the player what we had to do at the top to get the level to generate without crashing.
-		local offset_x, offset_y = level_offset(level)
-		local _, room_pos_y = get_room_pos(offset_x, offset_y)
+		local _, room_pos_y = get_room_pos(0, 0)
 		local width, height = size_of_level(level)
 		local camera_speed = .3
-		width = width + offset_x
-		height = height + offset_y
 		local _, max_room_pos_y = get_room_pos(width, height)
 		-- Currently, all levels fit the width of the zoomed-out screen, so only handling moving up and down.
 		if test_flag(buttons, 11) then -- up_key
@@ -1534,8 +1477,7 @@ end, ON.FRAME)
 set_post_entity_spawn(function (entity)
 	local x, y, layer = get_position(entity.uid)
 	local roomX, roomY = get_room_index(x, y)
-	local offsetX, offsetY = level_offset(level)
-	if is_shop_template_for_level_at(level, roomX - offsetX, roomY - offsetY) then
+	if is_shop_template_for_level_at(level, roomX, roomY) then
 		kill_entity(entity.uid)
 		spawn_entity(ENT_TYPE.BG_SHOP_BACKDOOR, x, y, layer, 0, 0)
 	end
