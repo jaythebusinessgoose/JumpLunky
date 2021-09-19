@@ -1,0 +1,67 @@
+// ------------------------------
+//  BASE CAMP (UNLOCKED GARDEN)
+// ------------------------------
+
+// ------------------------------
+//  TILE CODES
+// ------------------------------
+
+\?jungle_floor				J
+\?stone_floor				-
+\?growable_vine				V
+\?water						w
+\?cookfire					F
+
+// ------------------------------
+//  TEMPLATES
+// ------------------------------
+//
+//  !ignore		Ignore the following template. This is to make building rooms easier.
+//  !flip		Flip the following template to make another. i.e. The following template = two templates.
+//  !onlyflip	Flip the following template (original is ignored)
+//  !dual		The next template contains both a frontal and back room
+//  !rare		The next template is rare (only 5% chance of a rare template being used).
+//  !hard		The next template is hard (only appear in the second two levels of the area).
+//  !liquid		The next template contains liquid (used to limit the number of liquid drops)
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom5-4
+////////////////////////////////////////////////////////////////////////////////
+
+\!purge
+XXXXXXXXXX
+00000000JJ
+0000000000
+0000000000
+0000000000
+00000000J=
+00000000==
+===111001=
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom5-5
+////////////////////////////////////////////////////////////////////////////////
+
+\!purge
+XXXXXXXXXX
+-J0000000V
+0000000000
+0000000000
+F000000000
+JJJw--000w
+=JJJJ-wwww
+====JJJJJJ
+
+////////////////////////////////////////////////////////////////////////////////
+\.setroom5-6
+////////////////////////////////////////////////////////////////////////////////
+
+\!purge
+XXXXXXXXXX
+J0000--JVJ
+000000000J
+000000-00J
+0000JJ-J0J
+w-0--JJJ0=
+wJwJJJJJ0=
+JJJJ====0=
