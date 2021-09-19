@@ -3,6 +3,8 @@ meta.version = '1.5'
 meta.description = 'Challenging platforming puzzles'
 meta.author = 'JayTheBusinessGoose'
 
+local custom_levels = require "CustomLevels/custom_levels"
+
 local DWELLING_LEVEL <const> = 0
 local VOLCANA_LEVEL <const> = 1
 local TEMPLE_LEVEL <const> = 2
@@ -1036,8 +1038,7 @@ end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 ---- LEVEL GENERATION ----
 --------------------------
 
-set_callback(function (ctx)
-	if state.theme == THEME.BASE_CAMP then return end
+function file_name_for_level(level, difficulty)
 	
 	-- Most level types do not allow generation via setroom. For this reason, we add our level file
 	-- instead of replacing the existing level files with it. Our level generation will run after
@@ -1055,18 +1056,28 @@ set_callback(function (ctx)
     elseif level == SUNKEN_LEVEL then
 		level_file_name = 'sunk'
 	else
-		return
+		return nil
 	end
 	local difficulty_prefix = '.lvl'
-	if current_difficulty == DIFFICULTY.HARD then
+	if difficulty == DIFFICULTY.HARD then
 		difficulty_prefix = '-hard.lvl'
-	elseif current_difficulty == DIFFICULTY.EASY then
+	elseif difficulty == DIFFICULTY.EASY then
 		difficulty_prefix = '-easy.lvl'
 	end
 	local file_name = f'{level_file_name}{difficulty_prefix}'
+	return file_name
+end
 
-	ctx:override_level_files({ file_name, 'buffer.lvl', 'empty_rooms.lvl', 'icecavesarea.lvl'})
+set_callback(function(ctx)
+	local file_name = file_name_for_level(level, current_difficulty)
+	if state.theme == THEME.BASE_CAMP or state.theme == 0 or not file_name then
+		custom_levels.unload_level()
+		return
+	end
+	local width, height = size_of_level(level)
+	custom_levels.load_level(file_name, width, height, ctx)
 end, ON.PRE_LOAD_LEVEL_FILES)
+
 
 -- Create a bunch of room templates that can be used in lvl files to create rooms. The maximum
 -- level size is 8x15, so we only create that many templates.
@@ -1119,7 +1130,7 @@ function is_shop_template_for_level_at(level, x, y)
 end
 
 set_callback(function (ctx)
-	if state.theme == THEME.BASE_CAMP then return end
+	if state.theme == THEME.BASE_CAMP or true then return end
 	-- For some reason, Volcana (maybe other areas?) will crash if we try to replace one of its exit door layouts.
 	-- To avoid this crash, we offset the Y-position that we insert our generated level. We give it an offset of 4
 	-- typically so that we can add several rooms of floor between the top layer and our level. This way the player
