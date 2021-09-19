@@ -4,3 +4,6 @@
 [submodule "Telescopes"]
 	path = Telescopes
 	url = https://github.com/jaythebusinessgoose/Telescopes
+[submodule "ButtonPrompts"]
+	path = ButtonPrompts
+	url = https://github.com/jaythebusinessgoose/ButtonPrompts

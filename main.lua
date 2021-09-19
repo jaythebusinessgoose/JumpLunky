@@ -5,6 +5,7 @@ meta.author = 'JayTheBusinessGoose'
 
 local custom_levels = require("CustomLevels/custom_levels")
 local telescopes = require("Telescopes/telescopes")
+local button_prompts = require("ButtonPrompts/button_prompts")
 
 local DWELLING_LEVEL <const> = 0
 local VOLCANA_LEVEL <const> = 1
@@ -239,57 +240,6 @@ local has_seen_base_camp = false
 
 local keep_entity_x, keep_entity_y, keep_entity_layer
 
-------------------------
----- BUTTON PROMPTS ----
-------------------------
-
--- The prompt type determines what icon is shown along with the prompt.
-local PROMPT_TYPE <const> = {
-	DOOR = 0,
-	INTERACT = 1,
-	VIEW = 2,
-	SPEECH = 3,
-}
-
-local tvs = {}
-local button_prompts_hidden = false
-function hide_button_prompts(hidden)
-	button_prompts_hidden = hidden
-end
-
--- Spawn a button prompt at the coordinates.
-function spawn_button_prompt(prompt_type, x, y, layer)
-	-- Spawn a TV to "host" the prompt. We will hide the TV and silence its sound.
-	local tv_uid = spawn_entity(ENT_TYPE.ITEM_TV, x, y, layer, 0, 0)
-	local tv = get_entity(tv_uid)
-	tv.flags = set_flag(tv.flags, ENT_FLAG.INVISIBLE)
-	local prompt = get_entity(entity_get_items_by(tv.fx_button.uid, ENT_TYPE.FX_BUTTON_DIALOG, 0)[1])
-	prompt.animation_frame = 137 + 16 * prompt_type
-	tvs[#tvs+1] = tv
-	return tv_uid
-end
-
--- Silence the sound of TVs turning on -- these TVs are used to host the button prompts.
-set_vanilla_sound_callback(VANILLA_SOUND.ITEMS_TV_LOOP, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function(playing_sound)
-	playing_sound:set_volume(0)
-end)
-
-set_callback(function()
-	for _, tv in ipairs(tvs) do
-		-- If the station was changed, reset it back to 0 (off).
-		tv.station = 0
-		if button_prompts_hidden then
-			tv.flags = clr_flag(tv.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-		else
-			tv.flags = set_flag(tv.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-		end
-	end
-end, ON.GAMEFRAME)
-
--------------------------
----- /BUTTON PROMPTS ----
--------------------------
-
 ---------------
 ---- SOUNDS ---
 ---------------
@@ -449,7 +399,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local sign = get_entity(volcana_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	spawn_button_prompt(PROMPT_TYPE.VIEW, x + 3, y, layer)
+	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 3, y, layer)
 	spawn_camp_idol_for_level(VOLCANA_LEVEL, x + 2, y, layer)
 	return true
 end, "volcana_shortcut")
@@ -462,7 +412,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local sign = get_entity(temple_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	spawn_button_prompt(PROMPT_TYPE.VIEW, x + 3, y, layer)
+	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 3, y, layer)
 	spawn_camp_idol_for_level(TEMPLE_LEVEL, x + 2, y, layer)
 	return true
 end, "temple_shortcut")
@@ -475,7 +425,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local sign = get_entity(ice_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	spawn_button_prompt(PROMPT_TYPE.VIEW, x - 3, y, layer)
+	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x - 3, y, layer)
 	spawn_camp_idol_for_level(ICE_LEVEL, x - 2, y, layer)
 	return true
 end, "ice_shortcut")
@@ -488,7 +438,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local sign = get_entity(sunken_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	spawn_button_prompt(PROMPT_TYPE.VIEW, x - 3, y, layer)
+	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x - 3, y, layer)
 	spawn_camp_idol_for_level(SUNKEN_LEVEL, x - 2, y, layer)
 	return true
 end, "sunken_shortcut")
@@ -517,7 +467,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 	
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	spawn_button_prompt(PROMPT_TYPE.VIEW, x + 3, y, layer)
+	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 3, y, layer)
 	return true
 end, "continue_run")
 
@@ -540,38 +490,38 @@ set_pre_tile_code_callback(function(x, y, layer)
 	local hardcore_sign_entity = get_entity(hardcore_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	hardcore_sign_entity.flags = clr_flag(hardcore_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	hardcore_tv = spawn_button_prompt(PROMPT_TYPE.INTERACT, x + 3, y, layer)
+	hardcore_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.INTERACT, x + 3, y, layer)
 	
 	easy_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 6, y, layer, 0, 0)
 	local easy_sign_entity = get_entity(easy_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	easy_sign_entity.flags = clr_flag(easy_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	easy_tv = spawn_button_prompt(PROMPT_TYPE.INTERACT, x + 6, y, layer)
+	easy_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.INTERACT, x + 6, y, layer)
 	
 	normal_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 7, y, layer, 0, 0)
 	local normal_sign_entity = get_entity(normal_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	normal_sign_entity.flags = clr_flag(normal_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	normal_tv = spawn_button_prompt(PROMPT_TYPE.INTERACT, x + 7, y, layer)
+	normal_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.INTERACT, x + 7, y, layer)
 	
 	hard_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 8, y, layer, 0, 0)
 	local hard_sign_entity = get_entity(hard_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	hard_sign_entity.flags = clr_flag(hard_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	hard_tv = spawn_button_prompt(PROMPT_TYPE.INTERACT, x + 8, y, layer)
+	hard_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.INTERACT, x + 8, y, layer)
 	
 	stats_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 10, y, layer, 0, 0)
 	local stats_sign_entity = get_entity(stats_sign)
 	-- This stops the sign from displaying its default toast text when pressing the door button.
 	stats_sign_entity.flags = clr_flag(stats_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	stats_tv = spawn_button_prompt(PROMPT_TYPE.VIEW, x + 10, y, layer)
+	stats_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 10, y, layer)
 	
 	if legacy_normal_stats and legacy_easy_stats and legacy_hard_stats and legacy_hardcore_stats and legacy_hardcore_stats_easy and legacy_hardcore_stats_hard then
 		legacy_stats_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 11, y, layer, 0, 0)
 		local legacy_stats_sign_entity = get_entity(legacy_stats_sign)
 		-- This stops the sign from displaying its default toast text when pressing the door button.
 		legacy_stats_sign_entity.flags = clr_flag(legacy_stats_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-		legacy_stats_tv = spawn_button_prompt(PROMPT_TYPE.VIEW, x + 11, y, layer)
+		legacy_stats_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 11, y, layer)
 	end
 end, "tunnel_position")
 
@@ -652,7 +602,7 @@ set_callback(function()
 		-- Cancel speech bubbles so they don't show above stats.
 		cancel_speechbubble()
 		-- Hide the prompt so it doesn't show above stats.
-		hide_button_prompts(true)
+		button_prompts.hide_button_prompts(true)
 		journal_page = current_difficulty
 		stats_open_button = 6
 		stats_open_button_closed = false
@@ -674,7 +624,7 @@ set_callback(function()
 		-- Cancel speech bubbles so they don't show above stats.
 		cancel_speechbubble()
 		-- Hide the prompt so it doesn't show above stats.
-		hide_button_prompts(true)
+		button_prompts.hide_button_prompts(true)
 		journal_page = current_difficulty
 		stats_open_button = 6
 		stats_open_button_closed = false
@@ -744,7 +694,7 @@ set_callback(function()
 		-- too long since it mostly occurs while the camera is moving back.
 		return_input(player.uid)
 		state.level_flags = set_flag(state.level_flags, 20)
-		hide_button_prompts(false)
+		button_prompts.hide_button_prompts(false)
 		stats_closed_time = nil
 	end
 end, ON.GAMEFRAME)
@@ -2136,9 +2086,6 @@ function clear_variables()
 	player_near_hard_sign = false
 	player_near_normal_sign = false
 	player_near_hardcore_sign = false
-	
-	tvs = {}
-	button_prompts_hidden = false
 end
 
 set_callback(function()
