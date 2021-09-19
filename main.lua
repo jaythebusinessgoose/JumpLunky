@@ -1038,8 +1038,6 @@ end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 
 set_callback(function (ctx)
 	if state.theme == THEME.BASE_CAMP then return end
-	-- Add buffer templates so that we can replace generated rooms with a room full of floor.
-	ctx:add_level_files { 'buffer.lvl' }
 	
 	-- Most level types do not allow generation via setroom. For this reason, we add our level file
 	-- instead of replacing the existing level files with it. Our level generation will run after
@@ -1066,7 +1064,8 @@ set_callback(function (ctx)
 		difficulty_prefix = '-easy.lvl'
 	end
 	local file_name = f'{level_file_name}{difficulty_prefix}'
-	ctx:add_level_files { file_name }
+
+	ctx:override_level_files({ file_name, 'buffer.lvl', 'empty_rooms.lvl', 'icecavesarea.lvl'})
 end, ON.PRE_LOAD_LEVEL_FILES)
 
 -- Create a bunch of room templates that can be used in lvl files to create rooms. The maximum
