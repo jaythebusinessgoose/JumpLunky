@@ -1049,6 +1049,7 @@ set_callback(function(ctx)
 		return
 	end
 	local width, height = size_of_level(level)
+	custom_levels.load_level(file_name, width, height, ctx)
 end, ON.PRE_LOAD_LEVEL_FILES)
 
 ---------------------------
@@ -1122,34 +1123,6 @@ end, "ice_yeti")
 ------------------------
 ---- /SPAWN ENEMIES ----
 ------------------------
-
-----------------------------
----- HIDE ENTRANCE DOOR ----
-----------------------------
-
-local entranceX
-local entranceY
-local entranceLayer
-
-set_pre_tile_code_callback(function(x, y, layer)
-	entranceX = math.floor(x)
-	entranceY = math.floor(y)
-	entranceLayer = math.floor(layer)
-	return false
-end, "entrance")
-
-set_post_entity_spawn(function (entity)
-	if state.theme == THEME.BASE_CAMP then return end
-	if not entranceX or not entranceY or not entranceLayer then return end
-	local px, py, pl = get_position(entity.uid)
-	if math.abs(px - entranceX) < 1 and math.abs(py - entranceY) < 1 and pl == entranceLayer then
-        kill_entity(entity.uid)
-	end
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.BG_DOOR)
-
------------------------------
----- /HIDE ENTRANCE DOOR ----
------------------------------
 
 --------------
 ---- IDOL ----
