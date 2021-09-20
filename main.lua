@@ -238,7 +238,6 @@ completion_idols = 0
 -- Whether in a game and not in the menus -- including in the base camp.
 local has_seen_base_camp = false
 
-local keep_entity_x, keep_entity_y, keep_entity_layer
 
 ---------------
 ---- SOUNDS ---
@@ -1050,7 +1049,6 @@ set_callback(function(ctx)
 		return
 	end
 	local width, height = size_of_level(level)
-	custom_levels.load_level(file_name, width, height, ctx)
 end, ON.PRE_LOAD_LEVEL_FILES)
 
 ---------------------------
@@ -1076,11 +1074,10 @@ end, "firefrog")
 -- Spawn a turkey in ice that must be extracted.
 define_tile_code("ice_turkey")
 set_pre_tile_code_callback(function(x, y, layer)
-	-- Set the keep_entity properties so that we don't delete this entity with the procedural spawns.
 	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
-	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
+	-- Force this spawn to be allowed so that we don't delete this entity with the procedural spawns.
+	custom_levels.force_allow_next_spawn()
 	local turkey_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
-	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	local turkey = get_entity(turkey_uid)
 	turkey.inside = ENT_TYPE.MOUNT_TURKEY
 	turkey.animation_frame = 239
@@ -1097,11 +1094,10 @@ end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MOUNT_TURKEY)
 -- Spawn a yeti in ice that must be extracted.
 define_tile_code("ice_yeti")
 set_pre_tile_code_callback(function(x, y, layer)
-	-- Set the keep_entity properties so that we don't delete this entity with the procedural spawns.
 	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
-	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
+	-- Force this spawn to be allowed so that we don't delete this entity with the procedural spawns.
+	custom_levels.force_allow_next_spawn()
 	local yeti_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
-	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	local yeti = get_entity(yeti_uid)
 	yeti.inside = ENT_TYPE.MONS_YETI
 
@@ -1184,16 +1180,15 @@ end
 -- Spawn an idol in ice  that must be extracted.
 define_tile_code("ice_idol")
 set_pre_tile_code_callback(function(x, y, layer)
-	-- Set the keep_entity properties so that we don't delete this entity with the procedural spawns.
 	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
 	if current_difficulty == DIFFICULTY.EASY or run_idols_collected[level] then
 		-- Do not spawn the idol in easy or if it has been collected.
 		return true
 	end
 	
-	keep_entity_x, keep_entity_y, keep_entity_layer = x, y, layer
+	-- Force this spawn to be allowed so that we don't delete this entity with the procedural spawns.
+	custom_levels.force_allow_next_spawn()
 	local idol_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
-	keep_entity_x, keep_entity_y, keep_entity_layer = nil, nil, nil
 	local idol = get_entity(idol_uid)
 	if idols_collected[level] then
 		idol.inside = ENT_TYPE.ITEM_MADAMETUSK_IDOL
@@ -1238,9 +1233,7 @@ end)
 -- Spawns a crate that contains a pile of three ropes.
 define_tile_code("rope_crate")
 set_pre_tile_code_callback(function(x, y, layer)
-	-- We must "force" the crate to spawn here since we typically kill crate spawns so the player doesn't see randomly
-	-- generated crates.
-	local crate_id = spawn_entity_forced(ENT_TYPE.ITEM_CRATE, x, y, layer)
+	local crate_id = spawn_entity(ENT_TYPE.ITEM_CRATE, x, y, layer, 0, 0)
 	local crate = get_entity(crate_id)
 	crate.inside = ENT_TYPE.ITEM_PICKUP_ROPEPILE
 	return true
@@ -1803,36 +1796,6 @@ set_ghost_spawn_times(-1, -1)
 ---- /DO NOT SPAWN GHOST ----
 -----------------------------
 
--------------------------------
----- PREVENT RANDOM SPAWNS ----
--------------------------------
-
-set_pre_entity_spawn(function(entity, x, y, layer, overlay)
-	-- Spawn TVs instead of cursed pots to make sure the cursed pot doesn't break and spawn the ghost.
-	return spawn_entity(ENT_TYPE.ITEM_TV, 1000, 0, 0, 0, 0)
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.ITEM_CURSEDPOT)
-
-set_post_entity_spawn(function (entity)
-	if state.theme == THEME.BASE_CAMP then return end
-	local x, y, layer = get_position(entity.uid)
-	if keep_entity_x and keep_entity_y and keep_entity_layer and keep_entity_x == x and keep_entity_y == y and keep_entity_layer == layer then return end
-	entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
-	move_entity(entity.uid, 1000, 0, 0, 0)
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.ITEM_TORCH, ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ENT_TYPE.MONS_PET_DOG, ENT_TYPE.ITEM_BONES, ENT_TYPE.EMBED_GOLD, ENT_TYPE.EMBED_GOLD_BIG, ENT_TYPE.ITEM_POT, ENT_TYPE.ITEM_NUGGET, ENT_TYPE.ITEM_NUGGET_SMALL, ENT_TYPE.ITEM_SKULL, ENT_TYPE.ITEM_CHEST, ENT_TYPE.ITEM_CRATE, ENT_TYPE.MONS_PET_CAT, ENT_TYPE.MONS_PET_HAMSTER, ENT_TYPE.ITEM_ROCK, ENT_TYPE.ITEM_RUBY, ENT_TYPE.ITEM_SAPPHIRE, ENT_TYPE.ITEM_EMERALD, ENT_TYPE.ITEM_WALLTORCH, ENT_TYPE.MONS_SCARAB, ENT_TYPE.ITEM_AUTOWALLTORCH, ENT_TYPE.ITEM_WEB, ENT_TYPE.ITEM_GOLDBAR, ENT_TYPE.ITEM_GOLDBARS, ENT_TYPE.MONS_SKELETON, ENT_TYPE.ITEM_CURSEDPOT, ENT_TYPE.MONS_CRITTERDUNGBEETLE, ENT_TYPE.MONS_CRITTERBUTTERFLY, ENT_TYPE.MONS_CRITTERSNAIL, ENT_TYPE.MONS_CRITTERFISH, ENT_TYPE.MONS_CRITTERANCHOVY, ENT_TYPE.MONS_CRITTERCRAB, ENT_TYPE.MONS_CRITTERLOCUST, ENT_TYPE.MONS_CRITTERPENGUIN, ENT_TYPE.MONS_CRITTERFIREFLY, ENT_TYPE.MONS_CRITTERDRONE, ENT_TYPE.MONS_CRITTERSLIME)
-
--- Spawning via this method essentially ignores the spawn prevention by moving the entity back. This must be called when spawning an
--- entity that is normally removed.
-function spawn_entity_forced(entity_type, x, y, layer)
-	local entity_uid = spawn_entity_nonreplaceable(entity_type, x, y, layer, 0, 0)
-	local entity = get_entity(entity_uid)
-	move_entity(entity_uid, x, y, 0, 0)
-	entity.flags = clr_flag(entity.flags, ENT_FLAG.INVISIBLE)
-	return entity_uid
-end
-
---------------------------------
----- /PREVENT RANDOM SPAWNS ----
---------------------------------
 
 ----------------------------------
 ---- MANAGE LEVEL TRANSITIONS ----
