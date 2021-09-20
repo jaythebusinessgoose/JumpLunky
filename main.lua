@@ -1076,8 +1076,6 @@ end, "firefrog")
 define_tile_code("ice_turkey")
 set_pre_tile_code_callback(function(x, y, layer)
 	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
-	-- Force this spawn to be allowed so that we don't delete this entity with the procedural spawns.
-	custom_levels.force_allow_next_spawn()
 	local turkey_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
 	local turkey = get_entity(turkey_uid)
 	turkey.inside = ENT_TYPE.MOUNT_TURKEY
@@ -1096,8 +1094,6 @@ end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MOUNT_TURKEY)
 define_tile_code("ice_yeti")
 set_pre_tile_code_callback(function(x, y, layer)
 	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
-	-- Force this spawn to be allowed so that we don't delete this entity with the procedural spawns.
-	custom_levels.force_allow_next_spawn()
 	local yeti_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
 	local yeti = get_entity(yeti_uid)
 	yeti.inside = ENT_TYPE.MONS_YETI
@@ -1158,9 +1154,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 		-- Do not spawn the idol in easy or if it has been collected.
 		return true
 	end
-	
-	-- Force this spawn to be allowed so that we don't delete this entity with the procedural spawns.
-	custom_levels.force_allow_next_spawn()
+
 	local idol_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
 	local idol = get_entity(idol_uid)
 	if idols_collected[level] then
