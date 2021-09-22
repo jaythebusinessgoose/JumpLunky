@@ -299,35 +299,74 @@ end
 
 -- Replace the background texture of a door with the texture of the correct level's theme.
 function texture_door_at(x, y, layer, level)
-	function texture_file_for_level(level)
-		if level == DWELLING_LEVEL then
-			return "floor_cave.png"
-		elseif level == VOLCANA_LEVEL then
-			return "floor_volcano.png"
-		elseif level == TEMPLE_LEVEL then
-			return "floor_temple.png"
-		elseif level == ICE_LEVEL then
-			return "floor_ice.png"
-		elseif level == SUNKEN_LEVEL then
-			return "floor_sunken.png"
-		else
-			return "floor_cave.png"
+	function texture_for_theme(theme, co_subtheme)
+		if theme == THEME.DWELLING then
+			return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
+		elseif theme == THEME.VOLCANA then
+			return TEXTURE.DATA_TEXTURES_FLOOR_VOLCANO_2
+		elseif theme == THEME.JUNGLE then
+			return TEXTURE.DATA_TEXTURES_FLOOR_JUNGLE_1
+		elseif theme == THEME.OLMEC then
+			return TEXTURE.DATA_TEXTURES_DECO_JUNGLE_2
+		elseif theme == THEME.TIDE_POOL then
+			return TEXTURE.DATA_TEXTURES_FLOOR_TIDEPOOL_3
+		elseif theme == THEME.TEMPLE then
+			return TEXTURE.DATA_TEXTURES_FLOOR_TEMPLE_1
+		elseif theme == THEME.ICE_CAVES then
+			return TEXTURE.DATA_TEXTURES_FLOOR_ICE_1
+		elseif theme == THEME.NEO_BABYLON then
+			return TEXTURE.DATA_TEXTURES_FLOOR_BABYLON_1
+		elseif theme == THEME.SUNKEN_CITY then
+			return TEXTURE.DATA_TEXTURES_FLOOR_SUNKEN_3
+		elseif theme == THEME.CITY_OF_GOLD then
+			return TEXTURE.DATA_TEXTURES_FLOOR_TEMPLE_4
+		elseif theme == THEME.DUAT then
+			return TEXTURE.DATA_TEXTURES_FLOOR_TEMPLE_1
+		elseif theme == THEME.ABZU then
+			return TEXTURE.DATA_TEXTURES_FLOOR_TIDEPOOL_3
+		elseif theme == THEME.TIAMAT then
+			return TEXTURE.DATA_TEXTURES_FLOOR_TIDEPOOL_3
+		elseif theme == THEME.EGGPLANT_WORLD then
+			return TEXTURE.DATA_TEXTURES_FLOOR_EGGPLANT_2
+		elseif theme == THEME.HUNDUN then
+			return TEXTURE.DATA_TEXTURES_FLOOR_SUNKEN_3
+		elseif theme == THEME.BASE_CAMP then
+			return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
+		elseif theme == THEME.ARENA then
+			return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
+		elseif theme == THEME.COSMIC_OCEAN then
+			if co_subtheme == COSUBTHEME.DWELLING then
+				return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
+			elseif co_subtheme == COSUBTHEME.JUNGLE then
+				return TEXTURE.DATA_TEXTURES_FLOOR_JUNGLE_1
+			elseif co_subtheme == COSUBTHEME.VOLCANA then
+				return TEXTURE.DATA_TEXTURES_FLOOR_VOLCANO_2
+			elseif co_subtheme == COSUBTHEME.TIDE_POOL then
+				return TEXTURE.DATA_TEXTURES_FLOOR_TIDEPOOL_3
+			elseif co_subtheme == COSUBTHEME.TEMPLE then
+				return TEXTURE.DATA_TEXTURES_FLOOR_TEMPLE_1
+			elseif co_subtheme == COSUBTHEME.ICE_CAVES then
+				return TEXTURE.DATA_TEXTURES_FLOOR_ICE_1
+			elseif co_subtheme == COSUBTHEME.NEO_BABYLON then
+				return TEXTURE.DATA_TEXTURES_FLOOR_BABYLON_1
+			elseif co_subtheme == COSUBTHEME.SUNKEN_CITY then
+				return TEXTURE.DATA_TEXTURES_FLOOR_SUNKEN_3
+			end
 		end
+		return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
+	end
+
+	function texture_for_level(level)
+		return texture_for_theme(theme_for_level(level))
 	end
 
 	local doors = get_entities_at(ENT_TYPE.BG_DOOR, 0, x, y, layer, 1)
 	for i = 1, #doors do
 		local door = get_entity(doors[i])
-		local texture = door:get_texture()
-		local texture_definition = get_texture_definition(texture)
-		-- The image for the door is in the same position in all texture maps, so all we need to do is
-		-- replace the image we pull from.
-		texture_definition.texture_path = "Data/Textures/" .. texture_file_for_level(level)
-		local new_texture = define_texture(texture_definition)
-		door:set_texture(new_texture)
+		door:set_texture(texture_for_level(level))
 	end
 end
-	
+
 function update_continue_door_enabledness()
 	-- Effectively disables the "continue run" door if there is no saved progress to continue from.
 	if continue_door then
