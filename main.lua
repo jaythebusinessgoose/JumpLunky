@@ -6,6 +6,7 @@ meta.author = 'JayTheBusinessGoose'
 local custom_levels = require("CustomLevels/custom_levels")
 local telescopes = require("Telescopes/telescopes")
 local button_prompts = require("ButtonPrompts/button_prompts")
+require('difficulty.lua')
 
 local DWELLING_LEVEL <const> = 0
 local VOLCANA_LEVEL <const> = 1
@@ -26,11 +27,6 @@ local save_context
 initial_bombs = 0
 initial_ropes = 0
 
-local DIFFICULTY <const> = {
-	EASY = 0,
-	NORMAL = 1,
-	HARD = 2,
-}
 local current_difficulty = DIFFICULTY.NORMAL
 
 -- overall state
