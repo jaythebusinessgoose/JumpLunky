@@ -6,7 +6,10 @@ meta.author = 'JayTheBusinessGoose'
 local custom_levels = require("CustomLevels/custom_levels")
 local telescopes = require("Telescopes/telescopes")
 local button_prompts = require("ButtonPrompts/button_prompts")
+local idols = require('idols.lua')
 require('difficulty.lua')
+
+local sunken_city = require("sunken_city")
 
 local DWELLING_LEVEL <const> = 0
 local VOLCANA_LEVEL <const> = 1
@@ -1066,23 +1069,38 @@ function size_of_level(level)
 	end
 end
 
--- This doesn't actually create a shop template anymore, but it is used for swapping the backlayer door
--- for a shop-themed door.
-function is_shop_template_for_level_at(level, x, y)
-	if level == SUNKEN_LEVEL then
-		if x == 2 and y == 2 then
-			return true
-		end
+local loaded_level = nil
+local function load_level(level_to_load, level)
+	if loaded_level then
+		loaded_level.unload_level()
 	end
-	return false
+	loaded_level = level_to_load
+	if not loaded_level then return end
+	if level == SUNKEN_LEVEL then
+		loaded_level.set_idol_collected(idols_collected[level])
+		loaded_level.set_run_idol_collected(run_idols_collected[level])
+		loaded_level.set_difficulty(current_difficulty)
+		loaded_level.set_ana_callback(function()
+			has_seen_ana_dead = true
+		end)
+	end
+	loaded_level.load_level()
 end
 
 set_callback(function(ctx)
 	local file_name = file_name_for_level(level, current_difficulty)
 	if state.theme == THEME.BASE_CAMP or state.theme == 0 or not file_name then
+		load_level(nil)
 		custom_levels.unload_level()
 		return
 	end
+	local function level_state_for_level(level)
+		if level == SUNKEN_LEVEL then
+			return sunken_city
+		end
+		return nil
+	end
+	load_level(level_state_for_level(level), level)
 	local width, height = size_of_level(level)
 	custom_levels.load_level(file_name, width, height, ctx)
 end, ON.PRE_LOAD_LEVEL_FILES)
@@ -1100,12 +1118,6 @@ set_pre_tile_code_callback(function(x, y, layer)
 	spawn_entity(ENT_TYPE.MONS_CATMUMMY, x, y, layer, 0, 0)
 	return true
 end, "catmummy")
-
-define_tile_code("firefrog")
-set_pre_tile_code_callback(function(x, y, layer)
-	spawn_entity(ENT_TYPE.MONS_FIREFROG, x, y, layer, 0, 0)
-	return true
-end, "firefrog")
 
 -- Spawn a turkey in ice that must be extracted.
 define_tile_code("ice_turkey")
@@ -1160,26 +1172,6 @@ end, "ice_yeti")
 --------------
 
 local idol
-function spawn_idol(x, y , layer)
-	local idol_uid
-	if current_difficulty == DIFFICULTY.EASY then
-		spawn_entity(ENT_TYPE.ITEM_MADAMETUSK_IDOLNOTE, x, y, layer, 0, 0)
-		return true
-	elseif run_idols_collected[level] then
-		-- Do not spawn the idol if it has already been collected on this run. This should be pretty rare because the
-		-- the idol can only be deposited at the exit door, and the player cannot return to the level after exiting.
-		return true
-	elseif idols_collected[level] then
-		-- If the idol for the level has _ever_ been collected, spawn a tusk idol instead.
-		idol_uid = spawn_entity_snapped_to_floor(ENT_TYPE.ITEM_MADAMETUSK_IDOL, x, y, layer, 0, 0)
-	else
-		idol_uid = spawn_entity_snapped_to_floor(ENT_TYPE.ITEM_IDOL, x, y, layer, 0, 0)
-	end
-	idol = get_entity(idol_uid)
-	-- Set the price to 0 so the player doesn't get gold for returning the idol.
-	idol.price = 0
-	return true
-end
 
 -- Spawn an idol in ice  that must be extracted.
 define_tile_code("ice_idol")
@@ -1208,9 +1200,18 @@ set_post_entity_spawn(function(entity)
 	entity.price = 0
 end, SPAWN_TYPE.ANY, 0, ENT_TYPE.ITEM_IDOL, ENT_TYPE.ITEM_MADAMETUSK_IDOL)
 
+function idol_collected_state_for_level(level)
+	if run_idols_collected[level] then
+		return IDOL_COLLECTED_STATE.COLLECTED_ON_RUN
+	elseif idols_collected[level] then
+		return IDOL_COLLECTED_STATE.COLLECTED
+	end
+	return IDOL_COLLECTED_STATE.NOT_COLLECTED
+end
+
 define_tile_code("idol_reward")
 set_pre_tile_code_callback(function(x, y, layer)
-	return spawn_idol(x, y, layer)
+	return spawn_idol(x, y, layer, idol_collected_state_for_level(level), current_difficulty == DIFFICULTY.EASY)
 end, "idol_reward")
 
 set_vanilla_sound_callback(VANILLA_SOUND.UI_DEPOSIT, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function()
@@ -1244,356 +1245,6 @@ end, "rope_crate")
 -------------------------------
 ---- /CRATE WITH ROPE PILE ----
 -------------------------------
-
-----------------
----- LASERS ----
-----------------
-
-local challenge_forcefield
-local challenge_waitroom
-local laser_switch
-local has_switched_forcefield = false
-
-define_tile_code("laser_switch")
-set_pre_tile_code_callback(function(x, y, layer)
-	local switch_id = spawn_entity(ENT_TYPE.ITEM_SLIDINGWALL_SWITCH, x, y, layer, 0, 0)
-	laser_switch = get_entity(switch_id)
-	return true
-end, "laser_switch")
-
--- Laser that guards the entrance of the sun challenge until laser_switch is switched.
-define_tile_code("challenge_forcefield_switchable")
-set_pre_tile_code_callback(function(x, y, layer)
-	local forcefield_id = spawn_entity(ENT_TYPE.FLOOR_FORCEFIELD, x, y, layer, 0, 0)
-	challenge_forcefield = get_entity(forcefield_id)
-	challenge_forcefield:activate_laserbeam(true)
-	return true
-end, "challenge_forcefield_switchable")
-
--- Laser that turns on while participating in the sun challenge.
-define_tile_code("challenge_waitroom_switchable")
-set_pre_tile_code_callback(function(x, y, layer)
-	local forcefield_id = spawn_entity(ENT_TYPE.FLOOR_CHALLENGE_WAITROOM, x, y, layer, 0, 0)
-	challenge_waitroom = get_entity(forcefield_id)
-	challenge_waitroom:activate_laserbeam(false)
-	return true
-end, "challenge_waitroom_switchable")
-
-set_callback(function ()
-	if level == SUNKEN_LEVEL then
-		if has_switched_forcefield then return end
-		if laser_switch.timer > 0 then
-			challenge_forcefield:activate_laserbeam(false)
-			has_switched_forcefield = true
-			
-			-- Play a sound when flipping the switch so the player knows something happened.
-			play_sound(VANILLA_SOUND.UI_SECRET)
-		end
-	end
-end, ON.FRAME)
-
------------------
----- /LASERS ----
------------------
-
------------------------
----- SUN CHALLENGE ----
------------------------
-
-
--- Replace the back layer door with the correct style door for the challenge.
-set_post_entity_spawn(function (entity)
-	local x, y, layer = get_position(entity.uid)
-	local roomX, roomY = get_room_index(x, y)
-	if is_shop_template_for_level_at(level, roomX, roomY) then
-		kill_entity(entity.uid)
-		spawn_entity(ENT_TYPE.BG_SHOP_BACKDOOR, x, y, layer, 0, 0)
-	end
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.BG_DOOR_FRONT_LAYER)
-
-local kill_tun_plz
-local tunx,tuny,tunlayer
-set_post_entity_spawn(function (entity)
-	-- Add shop backlayer tiles to the room so it looks more like an actual challenge.
-	local x, y, layer = get_position(entity.uid)
-	local room_index_x, room_index_y = get_room_index(x, y)
-	local room_start_x, room_start_y = get_room_pos(room_index_x, room_index_y)
-	for i=room_start_x + 2,room_start_x+9 do
-		for j=room_start_y-7, room_start_y-1 do
-			local ship = spawn_entity(ENT_TYPE.BG_SHOP, i, j, layer, 0, 0)
-			local shop = get_entity(ship)
-			local texture_definition = TextureDefinition.new()
-			texture_definition.texture_path = "Data/Textures/floorstyled_wood.png"
-			texture_definition.width = 1280
-			texture_definition.height = 1280
-			texture_definition.tile_width = 128
-			texture_definition.tile_height = 128
-			texture_definition.sub_image_offset_x = 768 + 128 -- Let the computer do the math.
-			texture_definition.sub_image_offset_y = 0
-			texture_definition.sub_image_width = 256
-			texture_definition.sub_image_height = 128
-			local new_texture = define_texture(texture_definition)
-			shop:set_texture(new_texture)
-		end
-	end
-
-	-- Prepare Tun to be killed.
-	kill_tun_plz = entity
-	state.merchant_aggro = 1
-	tunx, tuny, tunlayer = x, y, layer
-	entity.health = 1
-	entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
-	entity.flags = set_flag(entity.flags, ENT_FLAG.FACING_LEFT)
-	
-	-- Move Tun off-screen to kill her without the player seeing or hearing.
-	move_entity(entity.uid, 10000, y, layer, 0, 0)
-	-- Spawn a skull at Tun's position to kill her.
-	spawn_entity(ENT_TYPE.ITEM_SKULLDROPTRAP_SKULL, 10000, y, layer, 0, 0)
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_MERCHANT)
-
-set_callback(function()
-	if level == SUNKEN_LEVEL and kill_tun_plz then
-		if kill_tun_plz.health == 0 then
-			kill_tun_plz.flags = clr_flag(kill_tun_plz.flags, ENT_FLAG.INVISIBLE)
-			kill_tun_plz.flags = set_flag(kill_tun_plz.flags, ENT_FLAG.FACING_LEFT)
-			if current_difficulty == DIFFICULTY.EASY then
-				-- Do not allow Tun to be picked up in easy mode; the sun challenge should be unavailable.
-				kill_tun_plz.flags = clr_flag(kill_tun_plz.flags, ENT_FLAG.PICKUPABLE)
-				kill_tun_plz.flags = clr_flag(kill_tun_plz.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
-			else
-				-- Allow the player to pick up Tun to activate the sun challenge.
-				kill_tun_plz.flags = set_flag(kill_tun_plz.flags, ENT_FLAG.PICKUPABLE)
-				kill_tun_plz.flags = set_flag(kill_tun_plz.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
-			end
-			move_entity(kill_tun_plz.uid, tunx, tuny, tunlayer, 0, 0)
-			kill_tun_plz = nil
-		end
-	end
-end, ON.FRAME)
-
-set_pre_tile_code_callback(function(x, y, layer)
-	-- Spawn a non-loaded HouYi Bow.
-	spawn_entity(ENT_TYPE.ITEM_HOUYIBOW, x, y, layer, 0, 0)
-	return true
-end, "houyibow")
-
-local dead_ana_pls_kill
-define_tile_code("ana_spelunky")
-set_pre_tile_code_callback(function(x, y, layer)
-	local ana_uid = spawn_entity(ENT_TYPE.MONS_CAVEMAN, x, y, layer, 0, 0)
-	local ana = get_entity(ana_uid)
-	local ana_texture = ana:get_texture()
-	local ana_texture_definition = get_texture_definition(ana_texture)
-	ana_texture_definition.texture_path = "Data/Textures/ana_dead2.png"
-	local new_texture = define_texture(ana_texture_definition)
-	ana:set_texture(new_texture)
-	-- We must kill Ana too, otherwise we can't get the bow she brought to the challenge room. :(
-	ana.health = 0
-	ana.flags = clr_flag(ana.flags, ENT_FLAG.PICKUPABLE)
-	ana.flags = clr_flag(ana.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
-	ana.flags = set_flag(ana.flags, ENT_FLAG.TAKE_NO_DAMAGE)
-	ana.flags = set_flag(ana.flags, ENT_FLAG.DEAD)
-	dead_ana_pls_kill = ana
-	return true
-end, "ana_spelunky")
-
-set_callback(function()
-	if not dead_ana_pls_kill then return end
-	-- Kill ana on each frame in case a necromancer revives her.
-	dead_ana_pls_kill.health = 0
-end, ON.FRAME)
-
-local challenge_reward_position_x
-local challenge_reward_position_y
-local challenge_reward_layer
-define_tile_code("challenge_reward")
-set_pre_tile_code_callback(function(x, y, layer)
-	-- Save the position of the tile we want to spawn the challenge reward (idol) at so we can spawn it later when
-	-- the challenge has been completed.
-	challenge_reward_position_x = x
-	challenge_reward_position_y = y
-	challenge_reward_layer = layer
-	return true
-end, "challenge_reward")
-
-local sunchallenge_generators = {}
-local sunchallenge_switch
-
--- Generators that will spawn the sun challenge enemies.
-define_tile_code("sunchallenge_generator")
-set_pre_tile_code_callback(function(x, y, layer)
-	local generator_id = spawn_entity(ENT_TYPE.FLOOR_SUNCHALLENGE_GENERATOR, x, y, layer, 0, 0)
-	local generator = get_entity(generator_id)
-	generator.on_off = false
-	-- Store these so we can activate them later.
-	sunchallenge_generators[#sunchallenge_generators + 1] = generator
-	return true
-end, "sunchallenge_generator")
-
-define_tile_code("sunchallenge_switch")
-set_pre_tile_code_callback(function(x, y, layer)
-    local switch_id = spawn_entity(ENT_TYPE.ITEM_SLIDINGWALL_SWITCH, x, y, layer, 0, 0)
-	sunchallenge_switch = get_entity(switch_id)
-	return true
-end, "sunchallenge_switch")
-
-set_post_entity_spawn(function(entity)
-	if level == SUNKEN_LEVEL then
-		-- Do not spawn capes from sun challenge vampires.
-		kill_entity(entity.uid)
-	end
-end, SPAWN_TYPE.SYSTEMIC, 0, ENT_TYPE.ITEM_CAPE)
-
-local has_payed_for_sun_challenge = false
-local sun_wait_timer
-local has_activated_sun_challenge = false
-local sun_challenge_activation_time
-local has_completed_sun_challenge = false
-local sun_challenge_toast_shown = 0
-set_callback(function ()
-	if level == SUNKEN_LEVEL then
-		-- This allows us to kill all of the spanws when the challenge is completed or the player dies.
-		function clear_sun_challenge_spawns()
-			local sun_challenge_spawns = get_entities_by_type({ENT_TYPE.MONS_SORCERESS, ENT_TYPE.MONS_VAMPIRE, ENT_TYPE.MONS_WITCHDOCTOR, ENT_TYPE.MONS_NECROMANCER, ENT_TYPE.MONS_REDSKELETON, ENT_TYPE.MONS_BAT, ENT_TYPE.MONS_BEE, ENT_TYPE.MONS_SKELETON, ENT_TYPE.MONS_SNAKE, ENT_TYPE.MONS_SPIDER})
-			for i=1,#sun_challenge_spawns do
-				local spawn = sun_challenge_spawns[i]
-				kill_entity(spawn)
-			end
-		end
-		
-		-- Turns off all generators.
-		function deactivate_generators()
-			for i = 1, #sunchallenge_generators do
-				local generator = sunchallenge_generators[i]
-				generator.on_off = false
-			end
-		end
-		if #players < 1 or players[1].health == 0 then
-			deactivate_generators()
-			clear_sun_challenge_spawns()
-			return
-		end
-		if has_completed_sun_challenge then
-			-- Do nothing, all done.
-		elseif has_activated_sun_challenge then
-			-- This means the player is currently participating in the challenge or waiting for it to begin.
-			
-			-- The number of frames since the challenge was started.
-			local time_waiting = state.time_level - sun_challenge_activation_time
-			
-			-- Turns on all generators to begin the challenge.
-			function activate_generators()
-				for i = 1, #sunchallenge_generators do
-					local generator = sunchallenge_generators[i]
-					generator.on_off = true
-				end
-			end
-			if players[1].health == 0 then
-				-- Turn off the challenge and kill all spawns if the player dies.
-				clear_sun_challenge_spawns()
-				has_completed_sun_challenge = true
-				deactivate_generators()
-				return
-			elseif sun_challenge_toast_shown == 0 then
-				if time_waiting > 60 then
-					toast("3...")
-					sun_challenge_toast_shown = 1
-				end
-			elseif sun_challenge_toast_shown == 1 then
-				if time_waiting > 110 then
-					-- Cancel the previous toast to make sure the next one displays.
-					cancel_toast()
-				end
-				if time_waiting > 120 then
-					toast("2...")
-					sun_challenge_toast_shown = 2
-				end
-			elseif sun_challenge_toast_shown == 2 then
-				if time_waiting > 170 then
-					-- Cancel the previous toast to make sure the next one displays.
-					cancel_toast()
-				end
-				if time_waiting > 180 then
-					toast("1...")
-					sun_challenge_toast_shown = 3
-				end
-			elseif sun_challenge_toast_shown == 3 then
-				if time_waiting > 230 then
-					-- Cancel the previous toast to make sure the next one displays.
-					cancel_toast()
-				end
-				if time_waiting > 240 then
-					challenge_waitroom:activate_laserbeam(false)
-					toast("Survive!")
-					sun_challenge_toast_shown = 4
-					activate_generators()
-				end
-			elseif sun_challenge_toast_shown == 4 then
-				if time_waiting > 240 + 25 * 60 then
-					toast("5 seconds remaining!")
-					sun_challenge_toast_shown = 5
-				end
-			elseif sun_challenge_toast_shown == 5 then
-				if time_waiting > 240 + 30 * 60 then
-					toast("You've won!")
-					deactivate_generators()
-					clear_sun_challenge_spawns()
-					challenge_forcefield:activate_laserbeam(false)
-					sun_challenge_toast_shown = 6
-					has_completed_sun_challenge = true
-					if challenge_reward_position_x then
-						spawn_idol(challenge_reward_position_x, challenge_reward_position_y, challenge_reward_layer)
-					end
-				end
-			end
-		elseif sun_wait_timer and state.time_level - sun_wait_timer > 90 then
-			-- After the player has been in the waiting room for 90 frames (1.5 seconds), turn on the laserbeams and start the countdown
-			-- to begin the challenge.
-			has_activated_sun_challenge = true
-			challenge_forcefield:activate_laserbeam(true)
-			challenge_waitroom:activate_laserbeam(true)
-			sun_challenge_activation_time = state.time_level
-		elseif has_payed_for_sun_challenge then
-			local minx, miny, layer = get_position(challenge_waitroom.uid)
-			local maxx, _, _ = get_position(challenge_forcefield.uid) 
-			local playerx, playery, playerLayer = get_position(players[1].uid)
-			
-			-- Reset the wait timer if the player leaves the waiting room within 90 frames (1.5 seconds) of entering it.
-			if not (layer == playerLayer and playerx > minx and playerx < maxx - 1 and playery < miny + 3 and playery > miny) then
-				sun_wait_timer = state.time_level
-			end
-		elseif state.kali_favor >= 3 then
-			cancel_toast()
-			has_payed_for_sun_challenge = true			
-			challenge_waitroom:activate_laserbeam(true)
-			function activate_challenge()
-				toast("Enter the door to begin the Challenge.")		
-			end
-			set_timeout(activate_challenge, 1)
-			sun_wait_timer = state.time_level
-		end
-	end
-end, ON.FRAME)
-
--- We don't want sun challenge bats or Guts tadpoles/coffins.
-set_post_entity_spawn(function (entity)
-	if level == SUNKEN_LEVEL then
-		entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
-		move_entity(entity.uid, 1000, 0, 0, 0)
-	end
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_BAT, ENT_TYPE.MONS_TADPOLE, ENT_TYPE.ITEM_COFFIN)
-
-define_tile_code("kali_statue")
-set_pre_tile_code_callback(function(x, y, layer)
-	local kali_uid = spawn_entity(ENT_TYPE.BG_KALI_STATUE, x + .5, y, layer, 0, 0)
-	local kali = get_entity(kali_uid)
-	kali.height = 7
-	kali.width = 6
-end, "kali_statue")
-
-------------------------
----- /SUN CHALLENGE ----
-------------------------
 
 -----------------------
 ---- BAT GENERATOR ----
@@ -1731,22 +1382,6 @@ set_pre_tile_code_callback(function(x, y, layer)
 	return true
 end, "dialog_block")
 
--- A merchant (Tun) that will be spoken to when walking near.
-local dialog_merchant
-set_post_entity_spawn(function (entity)
-	if level == SUNKEN_LEVEL then
-		dialog_merchant = entity
-	end
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_MERCHANT)
-
--- A character (Ana) that will be spoken to when walking near (she is actually a Caveman so she doesn't crash the game).
-local dialog_ana
-set_post_entity_spawn(function (entity)
-	if level == SUNKEN_LEVEL and not dialog_ana then
-		dialog_ana = entity
-	end
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_CAVEMAN)
-
 local hasDisplayedDialog = false
 set_callback(function ()
     if #players < 1 then return end
@@ -1762,24 +1397,6 @@ set_callback(function ()
 			end
 		else
 			hasDisplayedDialog = false
-		end
-	elseif level == SUNKEN_LEVEL then
-		if dialog_merchant and layer == LAYER.FRONT then
-			if distance(player_uid, dialog_merchant.uid) <= 2 then
-				say(player_uid, "What happened here?", 0, true)
-				dialog_merchant = nil
-			end
-		end
-		if dialog_ana and layer == LAYER.BACK then
-			if distance(player_uid, dialog_ana.uid) <= 2 then
-				if player:get_name() == "Ana Spelunky" then
-					say(player_uid, "What? Is that... me? What's going on here?", 0, true)
-				else
-					say(player_uid, "Ana? This can't be... The caves are supposed to...", 0, true)
-				end
-				has_seen_ana_dead = true
-				dialog_ana = nil
-			end
 		end
 	end
 end, ON.FRAME)
@@ -1999,29 +1616,7 @@ function clear_variables()
 	has_activated_totem = false
 	dialog_block_pos_x = nil
 	dialog_block_pos_y = nil
-	dialog_merchant = nil
-	dialog_ana = nil
 	hasDisplayedDialog = false
-	
-	challenge_forcefield = nil
-	challenge_waitroom = nil
-	laser_switch = nil
-	has_switched_forcefield = false
-	sunchallenge_generators = {}
-	sunchallenge_switch = nil
-	has_activated_sun_challenge = false
-	has_completed_sun_challenge = false
-	sun_challenge_activation_time = nil
-	sun_challenge_toast_shown = 0
-	challenge_reward_position_x = nil
-	challenge_reward_position_y = nil
-	challenge_reward_layer = nil
-	has_payed_for_sun_challenge = false
-	sun_wait_timer = nil
-	kill_tun_plz = nil
-	tunx = nil
-	tuny = nil
-	tunlayer = nil
 	
 	volcana_door = nil
 	volcana_sign = nil
@@ -2045,7 +1640,6 @@ function clear_variables()
 	tunnel = nil
 	show_stats = false
 	show_legacy_stats = false
-	dead_ana_pls_kill = nil
 	
 	player_near_easy_sign = false
 	player_near_hard_sign = false
