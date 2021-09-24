@@ -6,6 +6,8 @@ define_tile_code("ice_idol")
 
 local ice_caves = {
     theme = THEME.ICE_CAVES,
+    width = 4,
+    height = 13,
 }
 
 local level_state = {

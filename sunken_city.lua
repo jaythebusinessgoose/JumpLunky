@@ -430,6 +430,8 @@ end
 
 return {
     theme = THEME.SUNKEN_CITY,
+    width = 4,
+    height = 4,
     load_level = load_level,
     unload_level = unload_level,
     set_idol_collected = set_idol_collected,

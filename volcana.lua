@@ -2,6 +2,8 @@ define_tile_code("rope_crate")
 
 local volcana = {
     theme = THEME.VOLCANA,
+    width = 4,
+    height = 4,
 }
 
 local level_state = {

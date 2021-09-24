@@ -9,6 +9,8 @@ define_tile_code("dialog_block")
 
 local dwelling = {
     theme = THEME.DWELLING,
+    width = 4,
+    height = 5,
 }
 
 local level_state = {

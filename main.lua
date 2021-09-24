@@ -1053,19 +1053,6 @@ function file_name_for_level(level, difficulty)
 	return file_name
 end
 
--- Returns size of the level in width, height.
-function size_of_level(level)
-	if level == TEMPLE_LEVEL then
-		return 4, 6
-	elseif level == DWELLING_LEVEL then
-		return 4, 5
-	elseif level == ICE_LEVEL then
-		return 4, 13
-	else
-		return 4, 4
-	end
-end
-
 local loaded_level = nil
 local function load_level(level_to_load, level)
 	if loaded_level then
@@ -1105,9 +1092,14 @@ set_callback(function(ctx)
 		end
 		return nil
 	end
-	load_level(level_state_for_level(level), level)
-	local width, height = size_of_level(level)
-	custom_levels.load_level(file_name, width, height, ctx)
+	local level_state = level_state_for_level(level)
+	if not level_state then
+		load_level(nil)
+		custom_levels.unload_level()
+		return
+	end
+	load_level(level_state, level)
+	custom_levels.load_level(file_name, level_state.width, level_state.height, ctx)
 end, ON.PRE_LOAD_LEVEL_FILES)
 
 ---------------------------

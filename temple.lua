@@ -2,6 +2,8 @@ define_tile_code("catmummy")
 
 local temple = {
     theme = THEME.TEMPLE,
+    width = 4,
+    height = 6,
 }
 
 local level_state = {
