@@ -1067,6 +1067,10 @@ local function load_level(level_to_load, level)
 		loaded_level.set_ana_callback(function()
 			has_seen_ana_dead = true
 		end)
+	elseif level == ICE_LEVEL then
+		loaded_level.set_idol_collected(idols_collected[level])
+		loaded_level.set_run_idol_collected(run_idols_collected[level])
+		loaded_level.set_difficulty(current_difficulty)
 	end
 	loaded_level.load_level()
 end
