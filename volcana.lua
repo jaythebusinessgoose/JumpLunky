@@ -1,6 +1,3 @@
-local sound = require('play_sound')
-local clear_embeds = require('clear_embeds')
-
 define_tile_code("rope_crate")
 
 local volcana = {
