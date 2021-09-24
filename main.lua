@@ -7,9 +7,12 @@ local custom_levels = require("CustomLevels/custom_levels")
 local telescopes = require("Telescopes/telescopes")
 local button_prompts = require("ButtonPrompts/button_prompts")
 local idols = require('idols.lua')
+local sound = require('play_sound')
+local clear_embeds = require('clear_embeds')
 require('difficulty.lua')
 
 local sunken_city = require("sunken_city")
+local dwelling = require("dwelling")
 
 local DWELLING_LEVEL <const> = 0
 local VOLCANA_LEVEL <const> = 1
@@ -237,18 +240,9 @@ completion_idols = 0
 -- Whether in a game and not in the menus -- including in the base camp.
 local has_seen_base_camp = false
 
-
 ---------------
 ---- SOUNDS ---
 ---------------
-
-function play_sound(vanilla_sound)
-	sound = get_sound(vanilla_sound)
-	if sound then
-		sound:play()
-	end
-end
-
 
 -- Make spring traps quieter.
 set_vanilla_sound_callback(VANILLA_SOUND.TRAPS_SPRING_TRIGGER, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function(playing_sound)
@@ -615,7 +609,7 @@ set_callback(function()
 		steal_input(player.uid)
 		state.level_flags = clr_flag(state.level_flags, 20)
 		journal_page = current_difficulty
-		play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
+		sound.play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
 		stats_open_button = 8
 		stats_open_button_closed = false
 	end
@@ -644,7 +638,7 @@ set_callback(function()
 		stats_open_button = 6
 		stats_open_button_closed = false
 
-		play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
+		sound.play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
 	end
 
 	-- Show the legacy stats journal when pressing the door button by the sign.
@@ -666,7 +660,7 @@ set_callback(function()
 		stats_open_button = 6
 		stats_open_button_closed = false
 
-		play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
+		sound.play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
 	end
 	
 
@@ -694,12 +688,12 @@ set_callback(function()
 			state.level_flags = set_flag(state.level_flags, 20)
 			stats_open_button = nil
 			stats_open_button_closed = false
-			play_sound(VANILLA_SOUND.UI_JOURNAL_OFF)
+			sound.play_sound(VANILLA_SOUND.UI_JOURNAL_OFF)
 			return
 		end
 		
 		function play_journal_pageflip_sound()
-			play_sound(VANILLA_SOUND.MENU_PAGE_TURN)
+			sound.play_sound(VANILLA_SOUND.MENU_PAGE_TURN)
 		end
 		
 		-- Change difficulty when pressing left or right.
@@ -1097,6 +1091,8 @@ set_callback(function(ctx)
 	local function level_state_for_level(level)
 		if level == SUNKEN_LEVEL then
 			return sunken_city
+		elseif level == DWELLING_LEVEL then
+			return dwelling
 		end
 		return nil
 	end
@@ -1122,7 +1118,9 @@ end, "catmummy")
 -- Spawn a turkey in ice that must be extracted.
 define_tile_code("ice_turkey")
 set_pre_tile_code_callback(function(x, y, layer)
-	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	clear_embeds.perform_block_without_embeds(function()
+		local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	end)
 	local turkey_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
 	local turkey = get_entity(turkey_uid)
 	turkey.inside = ENT_TYPE.MOUNT_TURKEY
@@ -1140,7 +1138,9 @@ end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MOUNT_TURKEY)
 -- Spawn a yeti in ice that must be extracted.
 define_tile_code("ice_yeti")
 set_pre_tile_code_callback(function(x, y, layer)
-	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	clear_embeds.perform_block_without_embeds(function()
+		local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	end)
 	local yeti_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
 	local yeti = get_entity(yeti_uid)
 	yeti.inside = ENT_TYPE.MONS_YETI
@@ -1176,7 +1176,9 @@ local idol
 -- Spawn an idol in ice  that must be extracted.
 define_tile_code("ice_idol")
 set_pre_tile_code_callback(function(x, y, layer)
-	local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	clear_embeds.perform_block_without_embeds(function()
+		local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
+	end)
 	if current_difficulty == DIFFICULTY.EASY or run_idols_collected[level] then
 		-- Do not spawn the idol in easy or if it has been collected.
 		return true
@@ -1246,71 +1248,6 @@ end, "rope_crate")
 ---- /CRATE WITH ROPE PILE ----
 -------------------------------
 
------------------------
----- BAT GENERATOR ----
------------------------
-
-local bat_generator
-define_tile_code("bat_generator")
-set_pre_tile_code_callback(function(x, y, layer)
-	-- Creates a generator that will spawn bats when turned on. Defaults to off.
-	local generator_id = spawn_entity(ENT_TYPE.FLOOR_SUNCHALLENGE_GENERATOR, x, y, layer, 0.0, 0.0)
-	local generator = get_entity(generator_id)
-	generator.on_off = false
-	bat_generator = generator
-	return true
-end, "bat_generator")
-
-define_tile_code("bat_switch")
-local bat_switch
-set_pre_tile_code_callback(function(x, y, layer)
-    local switch_id = spawn_entity(ENT_TYPE.ITEM_SLIDINGWALL_SWITCH, x, y, layer, 0, 0)
-	bat_switch = get_entity(switch_id)
-	return true
-end, "bat_switch")
-
-
-local last_spawn
-local spawned_bat
-set_post_entity_spawn(function(ent)
-	if level == DWELLING_LEVEL then
-		if last_spawn ~= nil then
-			-- Kill the last enemy that was spawned so that we don't end up with too many enemies in memory. Doing this here
-			-- since we couldn't kill the enemy earlier.
-			kill_entity(last_spawn.uid)
-		end
-		last_spawn = ent
-		local x, y, l = get_position(ent.uid)
-		-- Spawn a bat one tile lower than the tile the enemy was spawned at; otherwise the bat will be crushed in the generator.
-		spawned_bat = spawn_entity_nonreplaceable(ENT_TYPE.MONS_BAT, x, y - 1, l, 0, 0)
-		-- Move the actual spawn out of the way instead of killing it; killing it now causes the generator to immediately
-		-- spawn again, leading to infinite spawns.
-		ent.x = 10000
-		-- Turn off the generator when a bat is spawned to make sure only one bat is ever spawned at a time.
-		bat_generator.on_off = false
-	end
-end, SPAWN_TYPE.SYSTEMIC, 0, {ENT_TYPE.MONS_SORCERESS, ENT_TYPE.MONS_VAMPIRE, ENT_TYPE.MONS_WITCHDOCTOR, ENT_TYPE.MONS_NECROMANCER})
-
-set_callback(function ()
-	if level == DWELLING_LEVEL then
-		local bat_entity = get_entity(spawned_bat)
-		if bat_entity and bat_entity.health == 0 then
-			-- Turn the generator back on now that the bat is dead.
-			bat_generator.on_off = true
-			spawned_bat = nil
-		end
-		if bat_switch.timer > 0 and bat_entity == nil and not bat_generator.on_off then
-			bat_generator.on_off = true
-			
-			play_sound(VANILLA_SOUND.UI_SECRET)
-		end
-	end
-end, ON.FRAME)
-
-------------------------
----- /BAT GENERATOR ----
-------------------------
-
 ------------------
 ---- MAGMAMAN ----
 ------------------
@@ -1330,80 +1267,6 @@ end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_MAGMAMAN)
 -------------------
 ---- /MAGMAMAN ----
 -------------------
-
-----------------------
----- SWITCH WALLS ----
-----------------------
-
--- Creates walls that will be destroyed when the totem_switch is switched. Don't ask why these are called totems, they're just walls.
-local moving_totems = {}
-define_tile_code("moving_totem")
-set_pre_tile_code_callback(function(x, y, layer)
-	local totem_uid = spawn_entity(ENT_TYPE.FLOOR_GENERIC, x, y, layer, 0, 0)
-	moving_totems[#moving_totems + 1] = get_entity(totem_uid)
-	return true
-end, "moving_totem")
-
-define_tile_code("totem_switch")
-local totem_switch;
-set_pre_tile_code_callback(function(x, y, layer)
-    local switch_id = spawn_entity(ENT_TYPE.ITEM_SLIDINGWALL_SWITCH, x, y, layer, 0, 0)
-	totem_switch = get_entity(switch_id)
-	return true
-end, "totem_switch")
-
-set_callback(function()
-	if not totem_switch then return end
-	if totem_switch.timer > 0 and not has_activated_totem then
-		has_activated_totem = true
-		for i=1, #moving_totems do
-			kill_entity(moving_totems[i].uid)	
-		end
-		moving_totems = {}
-	end
-end, ON.FRAME)
-
------------------------
----- /SWITCH WALLS ----
------------------------
-
------------------------------
----- PLAYER SPEECH HINTS ----
------------------------------
-
--- Specific to the Dwelling level, this is a block that will cause the player to say a message upon
--- walking past it.
-local dialog_block_pos_x
-local dialog_block_pos_y
-define_tile_code("dialog_block")
-set_pre_tile_code_callback(function(x, y, layer)
-	dialog_block_pos_x = x
-	dialog_block_pos_y = y
-	return true
-end, "dialog_block")
-
-local hasDisplayedDialog = false
-set_callback(function ()
-    if #players < 1 then return end
-	local player = players[1]
-	local player_uid = player.uid
-	local x, y, layer = get_position(player_uid)
-	
-	if level == DWELLING_LEVEL then
-		if x <= dialog_block_pos_x and y >= dialog_block_pos_y then
-			if not hasDisplayedDialog then
-				say(player_uid, "I don't think this is the right way.", 0, true)
-				hasDisplayedDialog = true
-			end
-		else
-			hasDisplayedDialog = false
-		end
-	end
-end, ON.FRAME)
-
-------------------------------
----- /PLAYER SPEECH HINTS ----
-------------------------------
 
 ----------------------------
 ---- DO NOT SPAWN GHOST ----
