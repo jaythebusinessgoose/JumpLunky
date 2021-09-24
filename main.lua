@@ -1112,12 +1112,6 @@ end, ON.PRE_LOAD_LEVEL_FILES)
 ---- SPAWN ENEMIES ----
 -----------------------
 
-define_tile_code("catmummy")
-set_pre_tile_code_callback(function(x, y, layer)
-	spawn_entity(ENT_TYPE.MONS_CATMUMMY, x, y, layer, 0, 0)
-	return true
-end, "catmummy")
-
 -- Spawn a turkey in ice that must be extracted.
 define_tile_code("ice_turkey")
 set_pre_tile_code_callback(function(x, y, layer)
