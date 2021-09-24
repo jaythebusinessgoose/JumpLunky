@@ -11,8 +11,9 @@ local sound = require('play_sound')
 local clear_embeds = require('clear_embeds')
 require('difficulty.lua')
 
-local sunken_city = require("sunken_city")
 local dwelling = require("dwelling")
+local volcana = require("volcana")
+local sunken_city = require("sunken_city")
 
 local DWELLING_LEVEL <const> = 0
 local VOLCANA_LEVEL <const> = 1
@@ -1093,6 +1094,8 @@ set_callback(function(ctx)
 			return sunken_city
 		elseif level == DWELLING_LEVEL then
 			return dwelling
+		elseif level == VOLCANA_LEVEL then
+			return volcana
 		end
 		return nil
 	end
@@ -1231,43 +1234,6 @@ end)
 ---- /IDOL ----
 ---------------
 
-------------------------------
----- CRATE WITH ROPE PILE ----
-------------------------------
-
--- Spawns a crate that contains a pile of three ropes.
-define_tile_code("rope_crate")
-set_pre_tile_code_callback(function(x, y, layer)
-	local crate_id = spawn_entity(ENT_TYPE.ITEM_CRATE, x, y, layer, 0, 0)
-	local crate = get_entity(crate_id)
-	crate.inside = ENT_TYPE.ITEM_PICKUP_ROPEPILE
-	return true
-end, "rope_crate")
-
--------------------------------
----- /CRATE WITH ROPE PILE ----
--------------------------------
-
-------------------
----- MAGMAMAN ----
-------------------
-
-set_post_entity_spawn(function (entity)
-	if level == VOLCANA_LEVEL then
-		-- Do not spawn magma men in the volcana lava.
-		local x, y, layer = get_position(entity.uid)
-		local lavas = get_entities_at(0, MASK.LAVA, x, y, layer, 1)
-		if #lavas > 0 then
-			entity.flags = set_flag(entity.flags, ENT_FLAG.INVISIBLE)
-			move_entity(entity.uid, 1000, 0, 0, 0)
-		end
-	end
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MONS_MAGMAMAN)
-
--------------------
----- /MAGMAMAN ----
--------------------
-
 ----------------------------
 ---- DO NOT SPAWN GHOST ----
 ----------------------------
@@ -1278,12 +1244,11 @@ set_ghost_spawn_times(-1, -1)
 ---- /DO NOT SPAWN GHOST ----
 -----------------------------
 
-
 ----------------------------------
 ---- MANAGE LEVEL TRANSITIONS ----
 ----------------------------------
 
--- Mange saving data and keeping the time in sync during level transitions and resets.
+-- Manage saving data and keeping the time in sync during level transitions and resets.
 
 function save_data()
 	if save_context then
