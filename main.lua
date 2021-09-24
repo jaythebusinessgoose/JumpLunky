@@ -13,6 +13,8 @@ require('difficulty.lua')
 
 local dwelling = require("dwelling")
 local volcana = require("volcana")
+local temple = require("temple")
+local ice_caves = require("ice_caves")
 local sunken_city = require("sunken_city")
 
 local DWELLING_LEVEL <const> = 0
@@ -1090,12 +1092,16 @@ set_callback(function(ctx)
 		return
 	end
 	local function level_state_for_level(level)
-		if level == SUNKEN_LEVEL then
-			return sunken_city
-		elseif level == DWELLING_LEVEL then
+		if level == DWELLING_LEVEL then
 			return dwelling
 		elseif level == VOLCANA_LEVEL then
 			return volcana
+		elseif level == TEMPLE_LEVEL then
+			return temple
+		elseif level == ICE_LEVEL then
+			return ice_caves
+		elseif level == SUNKEN_LEVEL then
+			return sunken_city
 		end
 		return nil
 	end
@@ -1108,91 +1114,11 @@ end, ON.PRE_LOAD_LEVEL_FILES)
 ---- /LEVEL GENERATION ----
 ---------------------------
 
------------------------
----- SPAWN ENEMIES ----
------------------------
-
--- Spawn a turkey in ice that must be extracted.
-define_tile_code("ice_turkey")
-set_pre_tile_code_callback(function(x, y, layer)
-	clear_embeds.perform_block_without_embeds(function()
-		local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
-	end)
-	local turkey_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
-	local turkey = get_entity(turkey_uid)
-	turkey.inside = ENT_TYPE.MOUNT_TURKEY
-	turkey.animation_frame = 239
-	turkey.color.a = 130
-	return true
-end, "ice_turkey")
-
-set_post_entity_spawn(function(entity)
-	if level ~= ICE_LEVEL then return end
-	-- Spawn the ice turkey dead so it can't be ridden.
-	entity.health = 0
-end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MOUNT_TURKEY)
-
--- Spawn a yeti in ice that must be extracted.
-define_tile_code("ice_yeti")
-set_pre_tile_code_callback(function(x, y, layer)
-	clear_embeds.perform_block_without_embeds(function()
-		local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
-	end)
-	local yeti_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
-	local yeti = get_entity(yeti_uid)
-	yeti.inside = ENT_TYPE.MONS_YETI
-
-	local texture_definition = TextureDefinition.new()
-	texture_definition.texture_path = "Data/Textures/monsters03.png"
-	texture_definition.width = 2048
-	texture_definition.height = 2048
-	texture_definition.tile_width = 128
-	texture_definition.tile_height = 128
-	texture_definition.sub_image_offset_x = 128 * 11 -- Let the computer do the math.
-	texture_definition.sub_image_offset_y = 128 * 4
-	texture_definition.sub_image_width = 128
-	texture_definition.sub_image_height = 128
-	local new_texture = define_texture(texture_definition)
-	yeti:set_texture(new_texture)
-
-	yeti.animation_frame = 0
-	yeti.color.a = 130
-	return true
-end, "ice_yeti")
-
-------------------------
----- /SPAWN ENEMIES ----
-------------------------
-
 --------------
 ---- IDOL ----
 --------------
 
 local idol
-
--- Spawn an idol in ice  that must be extracted.
-define_tile_code("ice_idol")
-set_pre_tile_code_callback(function(x, y, layer)
-	clear_embeds.perform_block_without_embeds(function()
-		local ice_uid = spawn_entity(ENT_TYPE.FLOOR_ICE, x, y, layer, 0, 0)
-	end)
-	if current_difficulty == DIFFICULTY.EASY or run_idols_collected[level] then
-		-- Do not spawn the idol in easy or if it has been collected.
-		return true
-	end
-
-	local idol_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
-	local idol = get_entity(idol_uid)
-	if idols_collected[level] then
-		idol.inside = ENT_TYPE.ITEM_MADAMETUSK_IDOL
-		idol.animation_frame = 172
-	else
-		idol.inside = ENT_TYPE.ITEM_IDOL
-		idol.animation_frame = 31
-	end
-	idol.color.a = 130
-	return true
-end, "ice_idol")
 
 set_post_entity_spawn(function(entity)
 	-- Set the price to 0 so the player doesn't get gold for returning the idol.
