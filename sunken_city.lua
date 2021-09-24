@@ -1,4 +1,5 @@
 local idols = require('idols')
+local sound = require('play_sound')
 require('difficulty')
 
 define_tile_code("firefrog")
@@ -10,12 +11,6 @@ define_tile_code("challenge_reward")
 define_tile_code("sunchallenge_generator")
 define_tile_code("kali_statue")
 
-local function play_sound(vanilla_sound)
-	sound = get_sound(vanilla_sound)
-	if sound then
-		sound:play()
-	end
-end
 
 local level_state = {
     loaded = false,
@@ -87,7 +82,7 @@ local function load_level()
             has_switched_forcefield = true
             
             -- Play a sound when flipping the switch so the player knows something happened.
-            play_sound(VANILLA_SOUND.UI_SECRET)
+            sound.play_sound(VANILLA_SOUND.UI_SECRET)
         end
     end, ON.FRAME)
 
