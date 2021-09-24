@@ -12,13 +12,13 @@ local level_state = {
 temple.load_level = function()
     if level_state.loaded then return end
     level_state.loaded = true
-    lvel_state.callbacks[#level_state.callbacks+1] = set_pre_tile_code_callback(function(x, y, layer)
+    level_state.callbacks[#level_state.callbacks+1] = set_pre_tile_code_callback(function(x, y, layer)
         spawn_entity(ENT_TYPE.MONS_CATMUMMY, x, y, layer, 0, 0)
         return true
     end, "catmummy")
 end
 
-volcana.unload_level = function()
+temple.unload_level = function()
     if not level_state.loaded then return end
 
     local callbacks_to_clear = level_state.callbacks
