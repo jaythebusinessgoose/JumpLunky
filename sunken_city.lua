@@ -11,6 +11,11 @@ define_tile_code("challenge_reward")
 define_tile_code("sunchallenge_generator")
 define_tile_code("kali_statue")
 
+local sunken_city = {
+    theme = THEME.SUNKEN_CITY,
+    width = 4,
+    height = 4,
+}
 
 local level_state = {
     loaded = false,
@@ -24,23 +29,23 @@ local overall_state = {
     seen_ana_callback = nil,
 }
 
-local function set_idol_collected(collected)
+sunken_city.set_idol_collected = function(collected)
     overall_state.idol_collected = collected
 end
 
-local function set_run_idol_collected(collected)
+sunken_city.set_run_idol_collected = function(collected)
     overall_state.run_idol_collected = collected
 end
 
-local function set_difficulty(difficulty)
+sunken_city.set_difficulty = function(difficulty)
     overall_state.difficulty = difficulty
 end
 
-local function set_ana_callback(callback)
+sunken_city.set_ana_callback = function(callback)
     overall_state.seen_ana_callback = callback
 end
 
-local function load_level()
+sunken_city.load_level = function()
     if level_state.loaded then return end
     level_state.loaded = true
 
@@ -412,7 +417,7 @@ local function load_level()
     end, ON.FRAME)
 end
 
-local function unload_level()
+sunken_city.unload_level = function()
     if not level_state.loaded then return end
 
     local callbacks_to_clear = level_state.callbacks
@@ -423,14 +428,4 @@ local function unload_level()
     end
 end
 
-return {
-    theme = THEME.SUNKEN_CITY,
-    width = 4,
-    height = 4,
-    load_level = load_level,
-    unload_level = unload_level,
-    set_idol_collected = set_idol_collected,
-    set_run_idol_collected = set_run_idol_collected,
-    set_difficulty = set_difficulty,
-    set_ana_callback = set_ana_callback,
-}
+return sunken_city
