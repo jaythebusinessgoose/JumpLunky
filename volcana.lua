@@ -1,15 +1,38 @@
+require('difficulty')
+
 define_tile_code("rope_crate")
 
 local volcana = {
+    identifier = "volc",
     theme = THEME.VOLCANA,
     width = 4,
     height = 4,
+    file_name = "volc.lvl",
 }
 
 local level_state = {
     loaded = false,
     callbacks = {},
 }
+
+local overall_state = {
+    difficulty = DIFFICULTY.NORMAL,
+}
+
+local function update_file_name()
+    if overall_state.difficulty == DIFFICULTY.HARD then
+        volcana.file_name = "volc-hard.lvl"
+    elseif overall_state.difficulty == DIFFICULTY.EASY then
+        volcana.file_name = "volc-easy.lvl"
+    else
+        volcana.file_name = "volc.lvl"
+    end
+end
+
+volcana.set_difficulty = function(difficulty)
+    overall_state.difficulty = difficulty
+    update_file_name()
+end
 
 volcana.load_level = function()
     if level_state.loaded then return end

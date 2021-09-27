@@ -12,9 +12,11 @@ define_tile_code("sunchallenge_generator")
 define_tile_code("kali_statue")
 
 local sunken_city = {
+    identifier = "sunk",
     theme = THEME.SUNKEN_CITY,
     width = 4,
     height = 4,
+    file_name = "sunk.lvl",
 }
 
 local level_state = {
@@ -25,7 +27,7 @@ local level_state = {
 local overall_state = {
     idol_collected = false,
     run_idol_collected = false,
-    difficulty = nil,
+    difficulty = DIFFICULTY.NORMAL,
     seen_ana_callback = nil,
 }
 
@@ -37,8 +39,19 @@ sunken_city.set_run_idol_collected = function(collected)
     overall_state.run_idol_collected = collected
 end
 
+local function update_file_name()
+    if overall_state.difficulty == DIFFICULTY.HARD then
+        sunken_city.file_name = "sunk-hard.lvl"
+    elseif overall_state.difficulty == DIFFICULTY.EASY then
+        sunken_city.file_name = "sunk-easy.lvl"
+    else
+        sunken_city.file_name = "sunk.lvl"
+    end
+end
+
 sunken_city.set_difficulty = function(difficulty)
     overall_state.difficulty = difficulty
+    update_file_name()
 end
 
 sunken_city.set_ana_callback = function(callback)

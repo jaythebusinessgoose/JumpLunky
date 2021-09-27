@@ -25,6 +25,7 @@ local SUNKEN_LEVEL <const> = 4
 
 local default_levels = {DWELLING_LEVEL, VOLCANA_LEVEL, TEMPLE_LEVEL, ICE_LEVEL, SUNKEN_LEVEL}
 local levels = default_levels
+local level_states = {dwelling, volcana, temple, ice_caves, sunken_city}
 
 first_level = levels[1]
 initial_level = first_level
@@ -1023,36 +1024,6 @@ end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 ---- LEVEL GENERATION ----
 --------------------------
 
-function file_name_for_level(level, difficulty)
-	
-	-- Most level types do not allow generation via setroom. For this reason, we add our level file
-	-- instead of replacing the existing level files with it. Our level generation will run after
-	-- the level has already been generated and will simply increase the size of the level to add our
-	-- rooms and also fill in the existing rooms.
-	local level_file_name
-    if level == DWELLING_LEVEL then
-		level_file_name = 'dwell'
-	elseif level == VOLCANA_LEVEL then
-		level_file_name = 'volc'
-    elseif level == TEMPLE_LEVEL then
-		level_file_name = 'temp'
-	elseif level == ICE_LEVEL then
-		level_file_name = 'ice'
-    elseif level == SUNKEN_LEVEL then
-		level_file_name = 'sunk'
-	else
-		return nil
-	end
-	local difficulty_prefix = '.lvl'
-	if difficulty == DIFFICULTY.HARD then
-		difficulty_prefix = '-hard.lvl'
-	elseif difficulty == DIFFICULTY.EASY then
-		difficulty_prefix = '-easy.lvl'
-	end
-	local file_name = f'{level_file_name}{difficulty_prefix}'
-	return file_name
-end
-
 local loaded_level = nil
 local function load_level(level_to_load, level)
 	if loaded_level then
@@ -1060,24 +1031,22 @@ local function load_level(level_to_load, level)
 	end
 	loaded_level = level_to_load
 	if not loaded_level then return end
+	loaded_level.set_difficulty(current_difficulty)
 	if level == SUNKEN_LEVEL then
 		loaded_level.set_idol_collected(idols_collected[level])
 		loaded_level.set_run_idol_collected(run_idols_collected[level])
-		loaded_level.set_difficulty(current_difficulty)
 		loaded_level.set_ana_callback(function()
 			has_seen_ana_dead = true
 		end)
 	elseif level == ICE_LEVEL then
 		loaded_level.set_idol_collected(idols_collected[level])
 		loaded_level.set_run_idol_collected(run_idols_collected[level])
-		loaded_level.set_difficulty(current_difficulty)
 	end
 	loaded_level.load_level()
 end
 
 set_callback(function(ctx)
-	local file_name = file_name_for_level(level, current_difficulty)
-	if state.theme == THEME.BASE_CAMP or state.theme == 0 or not file_name then
+	if state.theme == THEME.BASE_CAMP or state.theme == 0 then
 		load_level(nil)
 		custom_levels.unload_level()
 		return
@@ -1103,7 +1072,7 @@ set_callback(function(ctx)
 		return
 	end
 	load_level(level_state, level)
-	custom_levels.load_level(file_name, level_state.width, level_state.height, ctx)
+	custom_levels.load_level(level_state.file_name, level_state.width, level_state.height, ctx)
 end, ON.PRE_LOAD_LEVEL_FILES)
 
 ---------------------------

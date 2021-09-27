@@ -1,13 +1,16 @@
 local clear_embeds = require('clear_embeds')
+require('difficulty')
 
 define_tile_code("ice_turkey")
 define_tile_code("ice_yeti")
 define_tile_code("ice_idol")
 
 local ice_caves = {
+    identifier = "ice",
     theme = THEME.ICE_CAVES,
     width = 4,
     height = 13,
+    file_name = "ice.lvl",
 }
 
 local level_state = {
@@ -18,7 +21,7 @@ local level_state = {
 local overall_state = {
     idol_collected = false,
     run_idol_collected = false,
-    difficulty = nil,
+    difficulty = DIFFICULTY.NORMAL,
 }
 
 ice_caves.set_idol_collected = function(collected)
@@ -29,8 +32,19 @@ ice_caves.set_run_idol_collected = function(collected)
     overall_state.run_idol_collected = collected
 end
 
+local function update_file_name()
+    if overall_state.difficulty == DIFFICULTY.HARD then
+        ice_caves.file_name = "ice-hard.lvl"
+    elseif overall_state.difficulty == DIFFICULTY.EASY then
+        ice_caves.file_name = "ice-easy.lvl"
+    else
+        ice_caves.file_name = "ice.lvl"
+    end
+end
+
 ice_caves.set_difficulty = function(difficulty)
     overall_state.difficulty = difficulty
+    update_file_name()
 end
 
 ice_caves.load_level = function()

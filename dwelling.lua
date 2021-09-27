@@ -1,5 +1,6 @@
 local sound = require('play_sound')
 local clear_embeds = require('clear_embeds')
+require('difficulty')
 
 define_tile_code("bat_generator")
 define_tile_code("bat_switch")
@@ -8,15 +9,36 @@ define_tile_code("totem_switch")
 define_tile_code("dialog_block")
 
 local dwelling = {
+    identifier = "dwell",
     theme = THEME.DWELLING,
     width = 4,
     height = 5,
+    file_name = "dwell.lvl",
 }
 
 local level_state = {
     loaded = false,
     callbacks = {},
 }
+
+local overall_state = {
+    difficulty = DIFFICULTY.NORMAL,
+}
+
+local function update_file_name()
+    if overall_state.difficulty == DIFFICULTY.HARD then
+        dwelling.file_name = "dwell-hard.lvl"
+    elseif overall_state.difficulty == DIFFICULTY.EASY then
+        dwelling.file_name = "dwell-easy.lvl"
+    else
+        dwelling.file_name = "dwell.lvl"
+    end
+end
+
+dwelling.set_difficulty = function(difficulty)
+    overall_state.difficulty = difficulty
+    update_file_name()
+end
 
 dwelling.load_level = function()
     if level_state.loaded then return end
