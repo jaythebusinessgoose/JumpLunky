@@ -17,17 +17,17 @@ local temple = require("temple")
 local ice_caves = require("ice_caves")
 local sunken_city = require("sunken_city")
 
-local level_states = {dwelling, volcana, temple, ice_caves, sunken_city}
+local levels = {dwelling, volcana, temple, ice_caves, sunken_city}
 local current_level_index = 1
 local initial_level_index = 1
-local max_level_index = #level_states
+local max_level_index = #levels
 local function current_level()
-	return level_states[current_level_index]
+	return levels[current_level_index]
 end
 
 local function index_of_level(level)
 	if not level then return nil end
-	for index, level_at in pairs(level_states) do
+	for index, level_at in pairs(levels) do
 		if level_at.identifier == level.identifier then
 			return index
 		end
@@ -462,7 +462,7 @@ set_callback(function ()
 	-- Replace the main entrance door with a door that leads to the first level (Dwelling).
     local entrance_uid = get_entities_by_type(ENT_TYPE.FLOOR_DOOR_STARTING_EXIT)
     if entrance_uid[1] then
-		local first_level = level_states[1]
+		local first_level = levels[1]
         kill_entity(entrance_uid[1])
         spawn_door(
 			42,
@@ -664,7 +664,7 @@ end, ON.CAMP)
 
 function unique_idols_collected()
 	local unique_idol_count = 0
-	for i, lvl in ipairs(level_states) do
+	for i, lvl in ipairs(levels) do
 		if idols_collected[lvl.identifier] then
 			unique_idol_count = unique_idol_count + 1
 		end
@@ -673,7 +673,7 @@ function unique_idols_collected()
 end
 
 function hardcore_available()
-	return unique_idols_collected() == #level_states
+	return unique_idols_collected() == #levels
 end
 
 
@@ -1294,7 +1294,7 @@ set_callback(function ()
 		state.level_start = level_for_level(level)
 	end
 
-	local next_level = level_states[current_level_index + 1]
+	local next_level = levels[current_level_index + 1]
 	local exit_uids = get_entities_by_type(ENT_TYPE.FLOOR_DOOR_EXIT)
 	for i = 1,  #exit_uids do
 		local exit_uid = exit_uids[i]
@@ -1474,7 +1474,7 @@ set_callback(function ()
 				end
 			end
 			
-			if idols == #level_states and current_difficulty ~= DIFFICULTY.EASY then
+			if idols == #levels and current_difficulty ~= DIFFICULTY.EASY then
 				stats.max_idol_completions = stats.max_idol_completions + 1
 				if not stats.max_idol_best_time or stats.max_idol_best_time == 0 or completion_time < stats.max_idol_best_time then
 					stats.max_idol_best_time = completion_time
@@ -1803,7 +1803,7 @@ set_callback(function(ctx)
 		empty_stats = empty_stats + 1
 	end
 	local all_idols_text = ""
-	if completion_idols == #level_states then
+	if completion_idols == #levels then
 		all_idols_text = " (All Idols!)"
 	end
 	if current_difficulty ~= DIFFICULTY.EASY and completion_idols > 0 then
@@ -1948,7 +1948,7 @@ set_callback(function (ctx)
 			end
 			texts[#texts+1] = text
 		elseif initial_level_index ~= 1 then
-			texts[#texts+1] = "Shortcut to " .. level_states[initial_level_index].title .. " trial"
+			texts[#texts+1] = "Shortcut to " .. levels[initial_level_index].title .. " trial"
 		elseif hardcore_enabled then
 			if stats_hardcore.completions and stats_hardcore.completions > 0 then
 				idol_text = ""
@@ -2034,7 +2034,7 @@ set_callback(function (ctx)
 			texty = texty - th
 		end
 	else
-		local text = f'{level_states[initial_level_index].title} shortcut practice'
+		local text = f'{levels[initial_level_index].title} shortcut practice'
         local tw, _ = draw_text_size(28, text)
 		ctx:draw_text(0 - tw / 2, -0.935, 28, text, text_color)
     end
@@ -2061,7 +2061,7 @@ set_callback(function (ctx)
 			normal_stats.best_time = load_data.best_time
 			normal_stats.best_time_idol_count = load_data.best_time_idols
 			normal_stats.best_time_death_count = load_data.best_time_death_count
-			normal_stats.best_level = level_states[load_data.best_level+1]
+			normal_stats.best_level = levels[load_data.best_level+1]
 			normal_stats.completions = load_data.completions or 0
 			normal_stats.max_idol_completions = load_data.max_idol_completions or 0
 			normal_stats.max_idol_best_time = load_data.max_idol_best_time or 0
@@ -2077,7 +2077,7 @@ set_callback(function (ctx)
 					if best_level == 3 then
 						best_level = 4
 					end
-					new_stats.best_level = level_states[best_level + 1]
+					new_stats.best_level = levels[best_level + 1]
 				end
 				return new_stats
 			end
@@ -2104,7 +2104,7 @@ set_callback(function (ctx)
 				local new_stats = {}
 				for k,v in pairs(stats) do new_stats[k] = v end
 				if stats.best_level then
-					new_stats.best_level = level_states[stats.best_level + 1]
+					new_stats.best_level = levels[stats.best_level + 1]
 				end
 				return new_stats
 			end
@@ -2158,7 +2158,7 @@ set_callback(function (ctx)
 		function load_saved_run_data(saved_run, saved_run_data)
 			saved_run.has_saved_run = saved_run_data.has_saved_run or not load_version
 			saved_run.saved_run_level_index = saved_run_data.level + 1
-			saved_run.saved_run_level = level_states[saved_run.saved_run_level_index]
+			saved_run.saved_run_level = levels[saved_run.saved_run_level_index]
 			saved_run.saved_run_attempts = saved_run_data.attempts
 			saved_run.saved_run_idol_count = saved_run_data.idols
 			saved_run.saved_run_time = saved_run_data.run_time
