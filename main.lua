@@ -1354,20 +1354,6 @@ end, ON.FRAME)
 -- Leaving these variables set between resets can lead to undefined behavior due to the high likelyhood of entities being reused.
 function clear_variables()
 	idol = nil
-	if bat_generator then
-		bat_generator.on_off = false
-	end
-	bat_generator = nil
-	bat_switch = nil
-	moving_totems = {}
-	totem_slots = {}
-	totem_switch = nil
-	last_spawn = nil
-	spawned_bat = nil
-	has_activated_totem = false
-	dialog_block_pos_x = nil
-	dialog_block_pos_y = nil
-	hasDisplayedDialog = false
 	
 	volcana_door = nil
 	volcana_sign = nil
