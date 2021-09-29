@@ -12,7 +12,8 @@ define_tile_code("sunchallenge_generator")
 define_tile_code("kali_statue")
 
 local sunken_city = {
-    identifier = "sunk",
+    identifier = "sunken",
+    title = "Sunken City",
     theme = THEME.SUNKEN_CITY,
     width = 4,
     height = 4,

@@ -3,7 +3,8 @@ require('difficulty')
 define_tile_code("rope_crate")
 
 local volcana = {
-    identifier = "volc",
+    identifier = "volcana",
+    title = "Volcana",
     theme = THEME.VOLCANA,
     width = 4,
     height = 4,

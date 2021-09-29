@@ -7,6 +7,7 @@ define_tile_code("ice_idol")
 
 local ice_caves = {
     identifier = "ice",
+    title = "Ice Caves",
     theme = THEME.ICE_CAVES,
     width = 4,
     height = 13,

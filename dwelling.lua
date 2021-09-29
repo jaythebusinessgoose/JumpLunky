@@ -9,7 +9,8 @@ define_tile_code("totem_switch")
 define_tile_code("dialog_block")
 
 local dwelling = {
-    identifier = "dwell",
+    identifier = "dwelling",
+    title = "Dwelling",
     theme = THEME.DWELLING,
     width = 4,
     height = 5,

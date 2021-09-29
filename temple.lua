@@ -2,7 +2,8 @@ define_tile_code("catmummy")
 require('difficulty')
 
 local temple = {
-    identifier = "temp",
+    identifier = "temple",
+    title = "Temple",
     theme = THEME.TEMPLE,
     width = 4,
     height = 6,
