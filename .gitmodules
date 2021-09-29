@@ -7,3 +7,6 @@
 [submodule "ButtonPrompts"]
 	path = ButtonPrompts
 	url = https://github.com/jaythebusinessgoose/ButtonPrompts
+[submodule "LevelSequence"]
+	path = LevelSequence
+	url = https://github.com/jaythebusinessgoose/LevelSequence
