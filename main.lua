@@ -1108,7 +1108,7 @@ end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 --------------------------
 
 local loaded_level = nil
-local function load_level(level_to_load, level)
+local function load_level(level_to_load)
 	if loaded_level then
 		loaded_level.unload_level()
 	end
@@ -1134,14 +1134,14 @@ set_callback(function(ctx)
 		custom_levels.unload_level()
 		return
 	end
-	local level_state = current_level()
-	if not level_state then
+	local level = current_level()
+	if not level then
 		load_level(nil)
 		custom_levels.unload_level()
 		return
 	end
-	load_level(level_state, level)
-	custom_levels.load_level(level_state.file_name, level_state.width, level_state.height, ctx)
+	load_level(level)
+	custom_levels.load_level(level.file_name, level.width, level.height, ctx)
 end, ON.PRE_LOAD_LEVEL_FILES)
 
 ---------------------------
