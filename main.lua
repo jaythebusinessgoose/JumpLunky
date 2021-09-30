@@ -3,7 +3,7 @@ meta.version = '1.5'
 meta.description = 'Challenging platforming puzzles'
 meta.author = 'JayTheBusinessGoose'
 
-local custom_levels = require("CustomLevels/custom_levels")
+local level_sequence = require("LevelSequence/level_sequence")
 local telescopes = require("Telescopes/telescopes")
 local button_prompts = require("ButtonPrompts/button_prompts")
 local idols = require('idols.lua')
@@ -17,23 +17,7 @@ local temple = require("temple")
 local ice_caves = require("ice_caves")
 local sunken_city = require("sunken_city")
 
-local levels = {dwelling, volcana, temple, ice_caves, sunken_city}
-local current_level_index = 1
-local initial_level_index = 1
-local max_level_index = #levels
-local function current_level()
-	return levels[current_level_index]
-end
-
-local function index_of_level(level)
-	if not level then return nil end
-	for index, level_at in pairs(levels) do
-		if level_at.identifier == level.identifier then
-			return index
-		end
-	end
-	return nil
-end
+level_sequence.set_levels({dwelling, volcana, temple, ice_caves, sunken_city})
 
 continuing_run = false
 local save_context
@@ -48,9 +32,6 @@ total_idols = 0
 idols_collected = {}
 hardcore_enabled = false
 hardcore_previously_enabled = false
-
--- Total time of the current run.
-local time_total = 0
 
 -- Stats for games played in the default difficulty.
 normal_stats = {
@@ -189,8 +170,6 @@ end
 -- True if the player has seen ana dead in the sunken city level.
 has_seen_ana_dead = false
 
--- current run state
-attempts = 0
 idols = 0
 run_idols_collected = {}
 
@@ -199,7 +178,6 @@ local easy_saved_run = {
 	has_saved_run = false,
 	saved_run_attempts = nil,
 	saved_run_time = nil,
-	saved_run_level_index = nil,
 	saved_run_level = nil,
 	saved_run_idol_count = nil,
 	saved_run_idols_collected = {},
@@ -209,7 +187,6 @@ local normal_saved_run = {
 	has_saved_run = false,
 	saved_run_attempts = nil,
 	saved_run_time = nil,
-	saved_run_level_index = nil,
 	saved_run_level = nil,
 	saved_run_idol_count = nil,
 	saved_run_idols_collected = {},
@@ -219,7 +196,6 @@ local hard_saved_run = {
 	has_saved_run = false,
 	saved_run_attempts = nil,
 	saved_run_time = nil,
-	saved_run_level_index = nil,
 	saved_run_level = nil,
 	saved_run_idol_count = nil,
 	saved_run_idols_collected = {},
@@ -304,7 +280,7 @@ local function world_for_theme(theme)
 	return 1
 end
 
-function world_for_level(level)
+local function world_for_level(level)
 	return world_for_theme(level.theme)
 end
 
@@ -458,20 +434,6 @@ set_callback(function ()
 		local x, y, layer = get_position(sunken_door)
 		texture_door_at(x, y, layer, sunken_city)
 	end
-	
-	-- Replace the main entrance door with a door that leads to the first level (Dwelling).
-    local entrance_uid = get_entities_by_type(ENT_TYPE.FLOOR_DOOR_STARTING_EXIT)
-    if entrance_uid[1] then
-		local first_level = levels[1]
-        kill_entity(entrance_uid[1])
-        spawn_door(
-			42,
-			84,
-			LAYER.FRONT,
-			world_for_level(first_level),
-			level_for_level(first_level),
-			first_level.theme)
-    end
 end, ON.CAMP)
 
 -- Spawn an idol that is not interactible in any way. Only spawns the idol if it has been collected
@@ -664,7 +626,7 @@ end, ON.CAMP)
 
 function unique_idols_collected()
 	local unique_idol_count = 0
-	for i, lvl in ipairs(levels) do
+	for i, lvl in ipairs(level_sequence.levels()) do
 		if idols_collected[lvl.identifier] then
 			unique_idol_count = unique_idol_count + 1
 		end
@@ -673,7 +635,7 @@ function unique_idols_collected()
 end
 
 function hardcore_available()
-	return unique_idols_collected() == #levels
+	return unique_idols_collected() == #level_sequence.levels()
 end
 
 
@@ -881,6 +843,7 @@ set_callback(function()
 		elseif player.layer == LAYER.BACK and hardcore_sign and distance(player.uid, hardcore_sign) <= .5 then
 			if hardcore_available() then
 				hardcore_enabled = not hardcore_enabled
+				level_sequence.set_keep_progress(not hardcore_enabled)
 				hardcore_previously_enabled = true
 				update_continue_door_enabledness()
 				save_data()
@@ -1056,37 +1019,29 @@ set_callback(function()
 	
 	local saved_run = current_saved_run()
 	continuing_run = false
-	attempts = 0
-	time_total = 0
 	run_idols_collected = {}
 	idols = 0
 	-- Set some level and state properties for the door that the player is standing by. This is how we make sure to load the correct
 	-- level when entering a door -- it is all based on which door they were closest to when entering.
 	if (volcana_door and distance(players[1].uid, volcana_door) <= 1) or (volcana_sign and distance(player.uid, volcana_sign) <= 1) then
-		initial_level_index = index_of_level(volcana)
-		current_level_index = initial_level_index
+		level_sequence.load_shortcut(volcana)
 	elseif (temple_door and distance(players[1].uid, temple_door) <= 1) or (temple_sign and distance(player.uid, temple_sign) <= 1) then
-		initial_level_index = index_of_level(temple)
-		current_level_index = initial_level_index
+		level_sequence.load_shortcut(temple)
 	elseif (ice_door and distance(player.uid, ice_door) <= 1) or (ice_sign and distance(player.uid, ice_sign) <= 1) then
-		initial_level_index = index_of_level(ice_caves)
-		current_level_index = initial_level_index
+		level_sequence.load_shortcut(ice_caves)
 	elseif (sunken_door and distance(players[1].uid, sunken_door) <= 1) or (sunken_sign and distance(player.uid, sunken_sign) <= 1) then
-		initial_level_index = index_of_level(sunken_city)
-		current_level_index = initial_level_index
+		level_sequence.load_shortcut(sunken_city)
 	elseif (saved_run.has_saved_run and not hardcore_enabled) and ((continue_door and distance(players[1].uid, continue_door) <= 1) or (continue_sign and distance(player.uid, continue_sign) <= 1)) then
-		initial_level_index = 1
-		current_level_index = saved_run.saved_run_level_index
+		level_sequence.load_run(saved_run.saved_run_level,
+			saved_run.saved_run_attempts,
+			saved_run.saved_run_time)
 		continuing_run = true
-		attempts = saved_run.saved_run_attempts
-		time_total = saved_run.saved_run_time
 		idols = saved_run.saved_run_idol_count
 		run_idols_collected = saved_run.saved_run_idols_collected
 	else
 		-- If not next to any door, just set the state to the initial level. This will be overridden
 		-- before actually entering a door, but is useful for showing GUI in the Camp.
-		initial_level_index = 1
-		current_level_index = initial_level_index
+		level_sequence.load_run(level_sequence.levels()[1], 0, 0)
 	end
 end, ON.GAMEFRAME)
 
@@ -1103,56 +1058,181 @@ end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 ---- /CAMP ----
 ---------------
 
---------------------------
----- LEVEL GENERATION ----
---------------------------
+------------------------
+---- LEVEL SEQUENCE ----
+------------------------
 
-local loaded_level = nil
-local function load_level(level_to_load)
-	if loaded_level then
-		loaded_level.unload_level()
-	end
-	loaded_level = level_to_load
-	if not loaded_level then return end
-	loaded_level.set_difficulty(current_difficulty)
-	if loaded_level == sunken_city then
-		loaded_level.set_idol_collected(idols_collected[loaded_level.identifier])
-		loaded_level.set_run_idol_collected(run_idols_collected[loaded_level.identifier])
-		loaded_level.set_ana_callback(function()
+level_sequence.set_level_will_load_callback(function(level)
+	level.set_difficulty(current_difficulty)
+	if level == sunken_city then
+		level.set_idol_collected(idols_collected[level.identifier])
+		level.set_run_idol_collected(run_idols_collected[level.identifier])
+		level.set_ana_callback(function()
 			has_seen_ana_dead = true
 		end)
-	elseif loaded_level == ice_caves then
-		loaded_level.set_idol_collected(idols_collected[loaded_level.identifier])
-		loaded_level.set_run_idol_collected(run_idols_collected[loaded_level.identifier])
+	elseif level == ice_caves then
+		level.set_idol_collected(idols_collected[level.identifier])
+		level.set_run_idol_collected(run_idols_collected[level.identifier])
 	end
-	loaded_level.load_level()
-end
+end)
 
-set_callback(function(ctx)
-	if state.theme == THEME.BASE_CAMP or state.theme == 0 then
-		load_level(nil)
-		custom_levels.unload_level()
-		return
+level_sequence.set_post_level_generation_callback(function(level)
+	if #players == 0 then return end
+	
+	players[1].inventory.bombs = initial_bombs
+	players[1].inventory.ropes = initial_ropes
+	if players[1]:get_name() == "Roffy D. Sloth" or level == ice_caves then
+		players[1].health = 1
+	else
+		players[1].health = 2
 	end
-	local level = current_level()
-	if not level then
-		load_level(nil)
-		custom_levels.unload_level()
-		return
-	end
-	load_level(level)
-	custom_levels.load_level(level.file_name, level.width, level.height, ctx)
-end, ON.PRE_LOAD_LEVEL_FILES)
+end)
 
----------------------------
----- /LEVEL GENERATION ----
----------------------------
+level_sequence.set_on_completed_level(function(completed_level, next_level, initial_level)
+	if not next_level then return end
+	-- Update stats for the current difficulty mode.
+	local stats = current_stats()
+	local stats_hardcore = current_hardcore_stats()
+	local best_level_index = level_sequence.index_of_level(stats.best_level)
+	local hardcore_best_level_index = level_sequence.index_of_level(stats_hardcore.best_level)
+	local current_level_index = level_sequence.index_of_level(next_level)
+	local initial_level_index = level_sequence.index_of_level(initial_level)
+	-- Update the PB if the new level has not been reached yet.
+	if (not best_level_index or current_level_index > best_level_index) and
+			initial_level_index == 1 then
+		stats.best_level = next_level
+	end
+	if hardcore_enabled and
+			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
+			initial_level_index == 1 then
+		stats_hardcore.best_level = next_level
+	end
+end)
+
+level_sequence.set_on_win(function(attempts, total_time, initial_level)
+	local initial_level_index = level_sequence.index_of_level(initial_level)
+	local stats = current_stats()
+	local stats_hardcore = current_hardcore_stats()
+	if not level_sequence.took_shortcut() then
+		win = true
+		stats.completions = stats.completions + 1
+		completion_time = total_time
+		completion_deaths = attempts - 1
+		completion_idols = idols
+
+		if hardcore_enabled then
+			stats_hardcore.completions = stats_hardcore.completions + 1
+		else
+			-- Clear the saved run for the current difficulty if hardcore is disabled.
+			local saved_run = current_saved_run()
+			saved_run.has_saved_run = false
+			saved_run.saved_run_attempts = nil
+			saved_run.saved_run_idol_count = nil
+			saved_run.saved_run_idols_collected = {}
+			saved_run.saved_run_level = nil
+			saved_run.saved_run_time = nil
+		end
+				
+		if not stats.best_time or stats.best_time == 0 or completion_time < stats.best_time then
+			stats.best_time = completion_time
+			completion_time_new_pb = true
+			if current_difficulty ~= DIFFICULTY.EASY then
+				stats.best_time_idol_count = idols
+			end
+			stats.best_time_death_count = completion_deaths
+		else
+			completion_time_new_pb = false
+		end
+
+		if hardcore_enabled and
+				(not stats_hardcore.best_time or
+				stats_hardcore.best_time == 0 or
+				completion_time < stats_hardcore.best_time) then
+			stats_hardcore.best_time = completion_time
+			completion_time_new_pb = true
+			if current_difficulty ~= DIFFICULTY.EASY then
+				stats_hardcore.best_time_idol_count = idols
+			end
+		end
+		
+		if idols == #level_sequence.levels() and current_difficulty ~= DIFFICULTY.EASY then
+			stats.max_idol_completions = stats.max_idol_completions + 1
+			if not stats.max_idol_best_time or stats.max_idol_best_time == 0 or completion_time < stats.max_idol_best_time then
+				stats.max_idol_best_time = completion_time
+			end
+			if hardcore_enabled then
+				stats_hardcore.max_idol_completions = stats_hardcore.max_idol_completions + 1
+				if not stats_hardcore.max_idol_best_time or stats_hardcore.max_idol_best_time == 0 or completion_time < stats_hardcore.max_idol_best_time then
+					stats_hardcore.max_idol_best_time = completion_time
+				end
+			end
+		end
+		
+		if not stats.least_deaths_completion or completion_deaths < stats.least_deaths_completion or (completion_deaths == stats.least_deaths_completion and completion_time < stats.least_deaths_completion_time) then
+			if not stats.least_deaths_completion or completion_deaths < stats.least_deaths_completion then
+				completion_deaths_new_pb = true
+			end
+			stats.least_deaths_completion = completion_deaths
+			stats.least_deaths_completion_time = completion_time
+			if attempts == 1 then
+				stats.deathless_completions = stats.deathless_completions + 1
+			end
+		else
+			completion_deaths_new_pb = false
+		end 
+	end 
+	warp(1, 1, THEME.BASE_CAMP)
+end)
+
+set_callback(function ()
+    if win and state.theme == THEME.BASE_CAMP then	
+		local player_slot = state.player_inputs.player_slot_1
+		-- Show the win screen until the player presses the jump button.
+		if #players > 0 and test_flag(player_slot.buttons, 1) then
+			win = false
+			-- Re-enable the menu when the game is resumed.
+			state.level_flags = set_flag(state.level_flags, 20)
+		elseif #players > 0 and state.time_total > 120 then
+			-- Stun the player while the win screen is showing so that they do not accidentally move or take actions.
+			players[1]:stun(2)
+			-- Disable the pause menu while the win screen is showing.
+			state.level_flags = clr_flag(state.level_flags, 20)
+		end
+    end
+end, ON.GAMEFRAME)
+
+set_callback(function ()
+	-- Update the PB if the new level has not been reached yet. This is only really for the first time entering Dwelling,
+	-- since other times ON.RESET will not have an increased level from the best_level.
+	local stats = current_stats()
+	local stats_hardcore = current_hardcore_stats()
+	local best_level_index = level_sequence.index_of_level(stats.best_level)
+	local hardcore_best_level_index = level_sequence.index_of_level(stats_hardcore.best_level)
+	local current_level = level_sequence.get_run_state().current_level
+	local current_level_index = level_sequence.index_of_level(current_level)
+	if (not best_level_index or current_level_index > best_level_index) and
+			initial_level_index == 1 then
+		stats.best_level = current_level
+	end
+	if hardcore_enabled and
+			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
+			initial_level_index == 1 then
+		stats_hardcore.best_level = current_level
+	end
+end, ON.RESET)
+
+level_sequence.set_reset_run_callback(function()
+	run_idols_collected = {}
+	idols = 0
+end)
+
+-------------------------
+---- /LEVEL SEQUENCE ----
+-------------------------
 
 --------------
 ---- IDOL ----
 --------------
-
-local idol
 
 set_post_entity_spawn(function(entity)
 	-- Set the price to 0 so the player doesn't get gold for returning the idol.
@@ -1170,18 +1250,20 @@ end
 
 define_tile_code("idol_reward")
 set_pre_tile_code_callback(function(x, y, layer)
-	return spawn_idol(x, y, layer, idol_collected_state_for_level(current_level()), current_difficulty == DIFFICULTY.EASY)
+	return spawn_idol(
+		x,
+		y,
+		layer,
+		idol_collected_state_for_level(level_sequence.get_run_state().current_level),
+		current_difficulty == DIFFICULTY.EASY)
 end, "idol_reward")
 
 set_vanilla_sound_callback(VANILLA_SOUND.UI_DEPOSIT, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function()
-	if idol then
-		-- Consider the idol collected when the deposit sound effect plays.
-		idols_collected[current_level().identifier] = true
-		run_idols_collected[current_level().identifier] = true
-		idols = idols + 1
-		total_idols = total_idols + 1
-		idol = nil
-	end
+	-- Consider the idol collected when the deposit sound effect plays.
+	idols_collected[level_sequence.get_run_state().current_level.identifier] = true
+	run_idols_collected[level_sequence.get_run_state().current_level.identifier] = true
+	idols = idols + 1
+	total_idols = total_idols + 1
 end)
 
 ---------------
@@ -1198,9 +1280,9 @@ set_ghost_spawn_times(-1, -1)
 ---- /DO NOT SPAWN GHOST ----
 -----------------------------
 
-----------------------------------
----- MANAGE LEVEL TRANSITIONS ----
-----------------------------------
+--------------------
+---- SAVE STATE ----
+--------------------
 
 -- Manage saving data and keeping the time in sync during level transitions and resets.
 
@@ -1215,14 +1297,8 @@ end
 local started = false
 set_callback(function ()
     if state.theme == THEME.BASE_CAMP then return end
-	if started then 
-		if hardcore_enabled then
-			-- Reset the time when hardcore is enabled; the run is going to be reset.
-			time_total = 0
-		else
-			-- Save the time on reset so we can keep the timer going.
-			time_total = state.time_total
-			
+	if level_sequence.run_in_progress() then 
+		if not hardcore_enabled then			
 			save_current_run_stats()
 		end
 		save_data()
@@ -1231,114 +1307,25 @@ end, ON.RESET)
 
 set_callback(function ()
 	if state.theme == THEME.BASE_CAMP then return end
-	if started and not win then
-		time_total = state.time_total
-		
+	if level_sequence.run_in_progress() and not win then
 		save_current_run_stats()
 		save_data()
 	end
---	local x, y, layer = players[1].x, players[1].y, LAYER.FRONT-- get_postition(players[1].uid)
---	spawn_entity(players[1].type.id, 15, 0, LAYER.PLAYER, 0, 0)
---	players[1].x = players[1].x + 5
---	players[1].flags = set_flag(players[1].flags, ENT_FLAG.INVISIBLE)
 end, ON.TRANSITION)
-
-set_callback(function ()
-    if state.theme == THEME.BASE_CAMP then return end
-	state.time_total = time_total
-end, ON.POST_LEVEL_GENERATION)
-
-set_callback(function ()
-end, ON.LEVEL)
-
-set_callback(function ()
-    if state.theme == THEME.BASE_CAMP then return end
-	started = true
-	attempts = attempts + 1
-end, ON.START)
-
-set_callback(function ()
-	started = false
-end, ON.CAMP)
-
------------------------------------
----- /MANAGE LEVEL TRANSITIONS ----
------------------------------------
-
-----------------------
----- LEVEL THEMES ----
-----------------------
-
-set_callback(function ()
-	if #players == 0 then return end
-
-	local level = current_level()
-	players[1].inventory.bombs = initial_bombs
-	players[1].inventory.ropes = initial_ropes
-	if players[1]:get_name() == "Roffy D. Sloth" or level == ice_caves then
-		players[1].health = 1
-	else
-		players[1].health = 2
-	end
-	
-	-- This doesn't affect anything except what is displayed in the UI. When we have more than one level
-	-- per theme, we can use more complicated logic to determine what do display.
-	state.world = current_level_index
-	state.level = 1
-	
-	if not hardcore_enabled then
-		-- Setting the _start properties of the state will ensure that Instant Restarts will take the player back to the
-		-- current level, instead of going to the starting level.
-		state.world_start = world_for_level(level)
-		state.theme_start = level.theme
-		state.level_start = level_for_level(level)
-	end
-
-	local next_level = levels[current_level_index + 1]
-	local exit_uids = get_entities_by_type(ENT_TYPE.FLOOR_DOOR_EXIT)
-	for i = 1,  #exit_uids do
-		local exit_uid = exit_uids[i]
-		local exit_ent = get_entity(exit_uid)
-		if exit_ent then
-			exit_ent.entered = false
-			exit_ent.special_door = true
-			if not next_level then
-				-- The door in the final level will take the player back to the camp.
-				exit_ent.world = 1
-				exit_ent.level = 1
-				exit_ent.theme = THEME.BASE_CAMP
-			else
-				-- Sets the theme of the door to the theme of the next level we will load.
-				exit_ent.world = world_for_level(next_level)
-				exit_ent.level = level_for_level(next_level)
-				exit_ent.theme = next_level.theme
-			end
-		end
-	end
-end, ON.POST_LEVEL_GENERATION)
-
------------------------
----- /LEVEL THEMES ----
------------------------
-
---------------------------
----- STATE MANAGEMENT ----
---------------------------
 
 -- Saves the current state of the run so that it can be continued later if exited.
 function save_current_run_stats()
-	time_total = state.time_total
+	local run_state = level_sequence.get_run_state()
 	-- Save the current run only if there is a run in progress that did not start from a shorcut, and harcore mode is disabled.
-	if initial_level_index == 1 and
+	if not level_sequence.took_shortcut() and
 			not hardcore_enabled and
 			state.theme ~= THEME.BASE_CAMP and
 			started then
 		local saved_run = current_saved_run()
-		saved_run.saved_run_attempts = attempts
+		saved_run.saved_run_attempts = run_state.attempts
 		saved_run.saved_run_idol_count = idols
-		saved_run.saved_run_level_index = current_level_index
-		saved_run.saved_run_level = current_level()
-		saved_run.saved_run_time = time_total
+		saved_run.saved_run_level = run_state.current_level
+		saved_run.saved_run_time = run_state.total_time
 		saved_run.saved_run_idols_collected = run_idols_collected
 		saved_run.has_saved_run = true
 	end
@@ -1351,10 +1338,16 @@ set_callback(function()
 	end
 end, ON.FRAME)
 
+---------------------
+---- /SAVE STATE ----
+---------------------
+
+--------------------------
+---- STATE MANAGEMENT ----
+--------------------------
+
 -- Leaving these variables set between resets can lead to undefined behavior due to the high likelyhood of entities being reused.
 function clear_variables()
-	idol = nil
-	
 	volcana_door = nil
 	volcana_sign = nil
 	temple_door = nil
@@ -1391,152 +1384,6 @@ end, ON.PRE_LOAD_LEVEL_FILES)
 ---------------------------
 ---- /STATE MANAGEMENT ----
 ---------------------------
-
-------------------------------------
----- UPDATE LEVEL AND WIN STATE ----
-------------------------------------
-
-set_callback(function ()
-	current_level_index = current_level_index + 1
-	-- Update stats for the current difficulty mode.
-	local stats = current_stats()
-	local stats_hardcore = current_hardcore_stats()
-	local best_level_index = index_of_level(stats.best_level)
-	local hardcore_best_level_index = index_of_level(stats_hardcore.best_level)
-	-- Update the PB if the new level has not been reached yet.
-	if (not best_level_index or current_level_index > best_level_index) and
-			initial_level_index == 1 then
-		stats.best_level = current_level()
-	end
-	if hardcore_enabled and
-			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
-			initial_level_index == 1 then
-		stats_hardcore.best_level = current_level()
-	end
-	if current_level_index > max_level_index then
-		if initial_level_index == 1 then
-			-- Consider the transition to be to a "Win" state if the completed level was the final level and the 
-			-- run started on the first level. This excludes shortcuts, but does not exclude continuing a run, since
-			-- continuing sets the initial level to the first level.
-			win = true
-			stats.completions = stats.completions + 1
-			completion_time = time_total
-			completion_deaths = attempts - 1
-			completion_idols = idols
-			
-			if hardcore_enabled then
-				stats_hardcore.completions = stats_hardcore.completions + 1
-			else
-				-- Clear the saved run for the current difficulty if hardcore is disabled.
-				local saved_run = current_saved_run()
-				saved_run.has_saved_run = false
-				saved_run.saved_run_attempts = nil
-				saved_run.saved_run_idol_count = nil
-				saved_run.saved_run_idols_collected = {}
-				saved_run.saved_run_level_index = nil
-				saved_run.saved_run_level = nil
-				saved_run.saved_run_time = nil
-			end
-			
-			if not stats.best_time or stats.best_time == 0 or completion_time < stats.best_time then
-				stats.best_time = completion_time
-				completion_time_new_pb = true
-				if current_difficulty ~= DIFFICULTY.EASY then
-					stats.best_time_idol_count = idols
-				end
-				stats.best_time_death_count = completion_deaths
-			else
-				completion_time_new_pb = false
-			end
-
-			if hardcore_enabled and
-					(not stats_hardcore.best_time or
-					 stats_hardcore.best_time == 0 or
-					 completion_time < stats_hardcore.best_time) then
-				stats_hardcore.best_time = completion_time
-				completion_time_new_pb = true
-				if current_difficulty ~= DIFFICULTY.EASY then
-					stats_hardcore.best_time_idol_count = idols
-				end
-			end
-			
-			if idols == #levels and current_difficulty ~= DIFFICULTY.EASY then
-				stats.max_idol_completions = stats.max_idol_completions + 1
-				if not stats.max_idol_best_time or stats.max_idol_best_time == 0 or completion_time < stats.max_idol_best_time then
-					stats.max_idol_best_time = completion_time
-				end
-				if hardcore_enabled then
-					stats_hardcore.max_idol_completions = stats_hardcore.max_idol_completions + 1
-					if not stats_hardcore.max_idol_best_time or stats_hardcore.max_idol_best_time == 0 or completion_time < stats_hardcore.max_idol_best_time then
-						stats_hardcore.max_idol_best_time = completion_time
-					end
-				end
-			end
-			
-			if not stats.least_deaths_completion or completion_deaths < stats.least_deaths_completion or (completion_deaths == stats.least_deaths_completion and completion_time < stats.least_deaths_completion_time) then
-				if not stats.least_deaths_completion or completion_deaths < stats.least_deaths_completion then
-					completion_deaths_new_pb = true
-				end
-				stats.least_deaths_completion = completion_deaths
-				stats.least_deaths_completion_time = completion_time
-				if attempts == 1 then
-					stats.deathless_completions = stats.deathless_completions + 1
-				end
-			else
-				completion_deaths_new_pb = false
-			end 
-		end 
-		warp(1, 1, THEME.BASE_CAMP)
-	end
-end, ON.TRANSITION)
-
-set_callback(function ()
-    if win and state.theme == THEME.BASE_CAMP then	
-		local player_slot = state.player_inputs.player_slot_1
-		-- Show the win screen until the player presses the jump button.
-		if #players > 0 and test_flag(player_slot.buttons, 1) then
-			win = false
-			current_level_index = initial_level_index
-			-- Re-enable the menu when the game is resumed.
-			state.level_flags = set_flag(state.level_flags, 20)
-		elseif #players > 0 and state.time_total > 120 then
-			-- Stun the player while the win screen is showing so that they do not accidentally move or take actions.
-			players[1]:stun(2)
-			-- Disable the pause menu while the win screen is showing.
-			state.level_flags = clr_flag(state.level_flags, 20)
-		end
-    end
-end, ON.GAMEFRAME)
-
-set_callback(function ()
-	-- Update the PB if the new level has not been reached yet. This is only really for the first time entering Dwelling,
-	-- since other times ON.RESET will not have an increased level from the best_level.
-	local stats = current_stats()
-	local stats_hardcore = current_hardcore_stats()
-	local best_level_index = index_of_level(stats.best_level)
-	local hardcore_best_level_index = index_of_level(stats_hardcore.best_level)
-	if (not best_level_index or current_level_index > best_level_index) and
-			initial_level_index == 1 then
-		stats.best_level = current_level()
-	end
-	if hardcore_enabled and
-			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
-			initial_level_index == 1 then
-		stats_hardcore.best_level = current_level()
-	end
-
-	if hardcore_enabled then
-		-- Reset the level and progress to the initial_level_index if reseting in hardcore mode.
-		current_level_index = initial_level_index
-		run_idols_collected = {}
-		idols = 0
-		attempts = 0
-	end
-end, ON.RESET)
-
--------------------------------------
----- /UPDATE LEVEL AND WIN STATE ----
--------------------------------------
 
 ----------------------
 ---- HELPER UTILS ----
@@ -1695,13 +1542,11 @@ set_callback(function(ctx)
 	local _, textheight = ctx:draw_text_size("TestText,", fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
 	for _, text in ipairs(stat_texts) do
 		local t_color = rgba(0, 0, 36, 230)
---		local tw, th = ctx:draw_text_size(text, fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
 		ctx:draw_text(text, statstextx, statstexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
 		statstexty = statstexty + textheight - .04
 	end
 	for _, text in ipairs(hardcore_stat_texts) do
 		local t_color = rgba(0, 0, 36, 230)
-	--	local tw, th = ctx:draw_text_size(text, fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
 		ctx:draw_text(text, hardcoretextx, hardcoretexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
 		hardcoretexty = hardcoretexty + textheight - .04
 	end
@@ -1715,8 +1560,6 @@ set_callback(function(ctx)
 		stats_title = "STATS"
 	end
 	local stats_title_color = rgba(255,255,255,255)
---	local stats_title_width, stats_title_height = ctx:draw_text_size(100, stats_title)
---	ctx:draw_text(-stats_title_width / 2, .75, 100, stats_title, stats_title_color)
 	ctx:draw_text(stats_title, 0, .71, titlesize, titlesize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
 	ctx:draw_text("Hardcore", -statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.RIGHT, VANILLA_FONT_STYLE.ITALIC)
 	if show_legacy_stats then
@@ -1789,7 +1632,7 @@ set_callback(function(ctx)
 		empty_stats = empty_stats + 1
 	end
 	local all_idols_text = ""
-	if completion_idols == #levels then
+	if completion_idols == #level_sequence.levels() then
 		all_idols_text = " (All Idols!)"
 	end
 	if current_difficulty ~= DIFFICULTY.EASY and completion_idols > 0 then
@@ -1879,13 +1722,11 @@ set_callback(function(ctx)
 	local _, textheight = ctx:draw_text_size("TestText,", fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
 	for _, text in ipairs(stat_texts) do
 		local t_color = rgba(0, 0, 36, 230)
---		local tw, th = ctx:draw_text_size(text, fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
 		ctx:draw_text(text, statstextx, statstexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
 		statstexty = statstexty + textheight - .04
 	end
 	for _, text in ipairs(pb_stat_texts) do
 		local t_color = rgba(0, 0, 36, 230)
-	--	local tw, th = ctx:draw_text_size(text, fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
 		ctx:draw_text(text, hardcoretextx, hardcoretexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
 		hardcoretexty = hardcoretexty + textheight - .04
 	end
@@ -1933,8 +1774,8 @@ set_callback(function (ctx)
 				text = text .. " Idols: " .. saved_run.saved_run_idol_count
 			end
 			texts[#texts+1] = text
-		elseif initial_level_index ~= 1 then
-			texts[#texts+1] = "Shortcut to " .. levels[initial_level_index].title .. " trial"
+		elseif level_sequence.took_shortcut() then
+			texts[#texts+1] = "Shortcut to " .. level_sequence.get_run_state().initial_level.title .. " trial"
 		elseif hardcore_enabled then
 			if stats_hardcore.completions and stats_hardcore.completions > 0 then
 				idol_text = ""
@@ -1977,7 +1818,7 @@ set_callback(function (ctx)
 			texty = texty - th
 		end
 		return
-	elseif initial_level_index == 1 and hardcore_enabled then
+	elseif not level_sequence.took_shortcut() and hardcore_enabled then
 		local texts = {}
 		if current_difficulty == DIFFICULTY.EASY then
 			texts[#texts+1] = 'Easy mode (Hardcore)'
@@ -1998,7 +1839,7 @@ set_callback(function (ctx)
 			ctx:draw_text(0 - tw / 2, texty, 28, text, text_color)
 			texty = texty - th
 		end
-    elseif initial_level_index == 1 then
+    elseif not level_sequence.took_shortcut() then
 		local texts = {}
 		if current_difficulty == DIFFICULTY.EASY then
 			texts[#texts+1] = 'Easy mode'
@@ -2010,7 +1851,7 @@ set_callback(function (ctx)
 		if idols > 0 then
 			idols_text = f'     Idols: {idols}'
 		end
-		texts[#texts+1] = f'Deaths: {attempts - 1}{idols_text}'
+		texts[#texts+1] = f'Deaths: {level_sequence.get_run_state().attempts - 1}{idols_text}'
 		
 		local texty = -0.935
 		for i = #texts,1,-1 do
@@ -2020,7 +1861,7 @@ set_callback(function (ctx)
 			texty = texty - th
 		end
 	else
-		local text = f'{levels[initial_level_index].title} shortcut practice'
+		local text = f'{level_sequence.get_run_state().initial_level.title} shortcut practice'
         local tw, _ = draw_text_size(28, text)
 		ctx:draw_text(0 - tw / 2, -0.935, 28, text, text_color)
     end
@@ -2047,7 +1888,7 @@ set_callback(function (ctx)
 			normal_stats.best_time = load_data.best_time
 			normal_stats.best_time_idol_count = load_data.best_time_idols
 			normal_stats.best_time_death_count = load_data.best_time_death_count
-			normal_stats.best_level = levels[load_data.best_level+1]
+			normal_stats.best_level = level_sequence.levels()[load_data.best_level+1]
 			normal_stats.completions = load_data.completions or 0
 			normal_stats.max_idol_completions = load_data.max_idol_completions or 0
 			normal_stats.max_idol_best_time = load_data.max_idol_best_time or 0
@@ -2063,7 +1904,7 @@ set_callback(function (ctx)
 					if best_level == 3 then
 						best_level = 4
 					end
-					new_stats.best_level = levels[best_level + 1]
+					new_stats.best_level = level_sequence.levels()[best_level + 1]
 				end
 				return new_stats
 			end
@@ -2090,7 +1931,7 @@ set_callback(function (ctx)
 				local new_stats = {}
 				for k,v in pairs(stats) do new_stats[k] = v end
 				if stats.best_level then
-					new_stats.best_level = levels[stats.best_level + 1]
+					new_stats.best_level = level_sequence.levels()[stats.best_level + 1]
 				end
 				return new_stats
 			end
@@ -2099,7 +1940,6 @@ set_callback(function (ctx)
 			end
 			if load_data.easy_stats then
 				easy_stats = stat_convert(load_data.easy_stats)
-				-- print(inspect(easy_stats))
 			end
 			if load_data.hard_stats then
 				hard_stats = stat_convert(load_data.hard_stats)
@@ -2139,12 +1979,12 @@ set_callback(function (ctx)
 		idols_collected = load_data.idol_levels
 		total_idols = load_data.total_idols
 		hardcore_enabled = load_data.hardcore_enabled
+		level_sequence.set_keep_progress(not hardcore_enabled)
 		hardcore_previously_enabled = load_data.hpe
 		
 		function load_saved_run_data(saved_run, saved_run_data)
 			saved_run.has_saved_run = saved_run_data.has_saved_run or not load_version
-			saved_run.saved_run_level_index = saved_run_data.level + 1
-			saved_run.saved_run_level = levels[saved_run.saved_run_level_index]
+			saved_run.saved_run_level = level_sequence.levels()[saved_run_data.level+1]
 			saved_run.saved_run_attempts = saved_run_data.attempts
 			saved_run.saved_run_idol_count = saved_run_data.idols
 			saved_run.saved_run_time = saved_run_data.run_time
@@ -2172,7 +2012,7 @@ function force_save(ctx)
 		if not saved_run then return nil end
 		local saved_run_data = {
 			has_saved_run = saved_run.has_saved_run,
-			level = saved_run.saved_run_level_index - 1,
+			level = level_sequence.index_of_level(saved_run.saved_run_level) - 1,
 			attempts = saved_run.saved_run_attempts,
 			idols = saved_run.saved_run_idol_count,
 			idol_levels = saved_run.saved_run_idols_collected,
@@ -2186,7 +2026,7 @@ function force_save(ctx)
 	local function convert_stats(stats)
 		local new_stats = {}
 		for k,v in pairs(stats) do new_stats[k] = v end
-		local best_level = index_of_level(stats.best_level)
+		local best_level = level_sequence.index_of_level(stats.best_level)
 		if best_level then
 			new_stats.best_level = best_level - 1
 		else
