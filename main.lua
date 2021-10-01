@@ -760,7 +760,7 @@ set_callback(function()
 	end
 end, ON.GAMEFRAME)
 
-level_sequence.set_on_prepare_level(function(level, continuing_run_)
+level_sequence.set_on_prepare_initial_level(function(level, continuing_run_)
 	local saved_run = current_saved_run()
 	if continuing_run_ then
 		continuing_run = true
@@ -790,7 +790,7 @@ end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 ---- LEVEL SEQUENCE ----
 ------------------------
 
-level_sequence.set_level_will_load_callback(function(level)
+level_sequence.set_on_level_will_load(function(level)
 	level.set_difficulty(current_difficulty)
 	if level == sunken_city then
 		level.set_idol_collected(idols_collected[level.identifier])
@@ -804,7 +804,7 @@ level_sequence.set_level_will_load_callback(function(level)
 	end
 end)
 
-level_sequence.set_post_level_generation_callback(function(level)
+level_sequence.set_on_post_level_generation(function(level)
 	if #players == 0 then return end
 	
 	players[1].inventory.bombs = initial_bombs
@@ -949,7 +949,7 @@ set_callback(function ()
 	end
 end, ON.RESET)
 
-level_sequence.set_reset_run_callback(function()
+level_sequence.set_on_reset_run(function()
 	run_idols_collected = {}
 	idols = 0
 end)
