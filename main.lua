@@ -227,67 +227,6 @@ completion_idols = 0
 -- Whether in a game and not in the menus -- including in the base camp.
 local has_seen_base_camp = false
 
-----------------
----- THEMES ----
-----------------
-
-local function level_for_theme(theme)
-	return 5
-end
-
-local function level_for_level(level)
-	return level_for_theme(level.theme)
-end
-
-local function world_for_theme(theme)
-	if theme == THEME.DWELLING then
-		return 1
-	elseif theme == THEME.VOLCANA then
-		return 2
-	elseif theme == THEME.JUNGLE then
-		return 2
-	elseif theme == THEME.OLMEC then
-		return 3
-	elseif theme == THEME.TIDE_POOL then
-		return 4
-	elseif theme == THEME.TEMPLE then
-		return 4
-	elseif theme == THEME.ICE_CAVES then
-		return 5
-	elseif theme == THEME.NEO_BABYLON then
-		return 6
-	elseif theme == THEME.SUNKEN_CITY then
-		return 7
-	elseif theme == THEME.CITY_OF_GOLD then
-		return 4
-	elseif theme == THEME.DUAT then
-		return 4
-	elseif theme == THEME.ABZU then
-		return 4
-	elseif theme == THEME.TIAMAT then
-		return 6
-	elseif theme == THEME.EGGPLANT_WORLD then
-		return 7
-	elseif theme == THEME.HUNDUN then
-		return 7
-	elseif theme == THEME.BASE_CAMP then
-		return 1
-	elseif theme == THEME.ARENA then
-		return 1
-	elseif theme == THEME.COSMIC_OCEAN then
-		return 7
-	end
-	return 1
-end
-
-local function world_for_level(level)
-	return world_for_theme(level.theme)
-end
-
------------------
----- /THEMES ----
------------------
-
 ---------------
 ---- SOUNDS ---
 ---------------
@@ -310,131 +249,12 @@ end)
 ---- CAMP ----
 --------------
 
-local volcana_door
-local temple_door
-local ice_door
-local sunken_door
-local volcana_sign
-local temple_sign
-local ice_sign
-local sunken_sign
-
 local continue_door
-local continue_sign
-
--- Replace the background texture of a door with the texture of the correct level's theme.
-function texture_door_at(x, y, layer, level)
-	function texture_for_theme(theme, co_subtheme)
-		if theme == THEME.DWELLING then
-			return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
-		elseif theme == THEME.VOLCANA then
-			return TEXTURE.DATA_TEXTURES_FLOOR_VOLCANO_2
-		elseif theme == THEME.JUNGLE then
-			return TEXTURE.DATA_TEXTURES_FLOOR_JUNGLE_1
-		elseif theme == THEME.OLMEC then
-			return TEXTURE.DATA_TEXTURES_DECO_JUNGLE_2
-		elseif theme == THEME.TIDE_POOL then
-			return TEXTURE.DATA_TEXTURES_FLOOR_TIDEPOOL_3
-		elseif theme == THEME.TEMPLE then
-			return TEXTURE.DATA_TEXTURES_FLOOR_TEMPLE_1
-		elseif theme == THEME.ICE_CAVES then
-			return TEXTURE.DATA_TEXTURES_FLOOR_ICE_1
-		elseif theme == THEME.NEO_BABYLON then
-			return TEXTURE.DATA_TEXTURES_FLOOR_BABYLON_1
-		elseif theme == THEME.SUNKEN_CITY then
-			return TEXTURE.DATA_TEXTURES_FLOOR_SUNKEN_3
-		elseif theme == THEME.CITY_OF_GOLD then
-			return TEXTURE.DATA_TEXTURES_FLOOR_TEMPLE_4
-		elseif theme == THEME.DUAT then
-			return TEXTURE.DATA_TEXTURES_FLOOR_TEMPLE_1
-		elseif theme == THEME.ABZU then
-			return TEXTURE.DATA_TEXTURES_FLOOR_TIDEPOOL_3
-		elseif theme == THEME.TIAMAT then
-			return TEXTURE.DATA_TEXTURES_FLOOR_TIDEPOOL_3
-		elseif theme == THEME.EGGPLANT_WORLD then
-			return TEXTURE.DATA_TEXTURES_FLOOR_EGGPLANT_2
-		elseif theme == THEME.HUNDUN then
-			return TEXTURE.DATA_TEXTURES_FLOOR_SUNKEN_3
-		elseif theme == THEME.BASE_CAMP then
-			return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
-		elseif theme == THEME.ARENA then
-			return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
-		elseif theme == THEME.COSMIC_OCEAN then
-			if co_subtheme == COSUBTHEME.DWELLING then
-				return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
-			elseif co_subtheme == COSUBTHEME.JUNGLE then
-				return TEXTURE.DATA_TEXTURES_FLOOR_JUNGLE_1
-			elseif co_subtheme == COSUBTHEME.VOLCANA then
-				return TEXTURE.DATA_TEXTURES_FLOOR_VOLCANO_2
-			elseif co_subtheme == COSUBTHEME.TIDE_POOL then
-				return TEXTURE.DATA_TEXTURES_FLOOR_TIDEPOOL_3
-			elseif co_subtheme == COSUBTHEME.TEMPLE then
-				return TEXTURE.DATA_TEXTURES_FLOOR_TEMPLE_1
-			elseif co_subtheme == COSUBTHEME.ICE_CAVES then
-				return TEXTURE.DATA_TEXTURES_FLOOR_ICE_1
-			elseif co_subtheme == COSUBTHEME.NEO_BABYLON then
-				return TEXTURE.DATA_TEXTURES_FLOOR_BABYLON_1
-			elseif co_subtheme == COSUBTHEME.SUNKEN_CITY then
-				return TEXTURE.DATA_TEXTURES_FLOOR_SUNKEN_3
-			end
-		end
-		return TEXTURE.DATA_TEXTURES_FLOOR_CAVE_2
-	end
-
-	function texture_for_level(level)
-		return texture_for_theme(level.theme)
-	end
-
-	local doors = get_entities_at(ENT_TYPE.BG_DOOR, 0, x, y, layer, 1)
-	for i = 1, #doors do
-		local door = get_entity(doors[i])
-		door:set_texture(texture_for_level(level))
-	end
-end
 
 function update_continue_door_enabledness()
-	-- Effectively disables the "continue run" door if there is no saved progress to continue from.
-	if continue_door then
-		local x, y, layer = get_position(continue_door)
-		local doors = get_entities_at(0, 0, x, y, layer, 1)
-		for i=1,#doors do
-			local door = get_entity(doors[i])
-			if not current_saved_run().has_saved_run or hardcore_enabled then
-				door.flags = clr_flag(door.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-			else
-				-- Re-enable the door if hardcore mode is disabled, or if the difficulty is changed to one with a saved run.
-				door.flags = set_flag(door.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-			end
-		end
-		texture_door_at(x, y, layer, current_saved_run().saved_run_level)
-		local continue_door_entity = get_entity(continue_door)
-		continue_door_entity.world = world_for_level(current_saved_run().saved_run_level)
-		continue_door_entity.level = level_for_level(current_saved_run().saved_run_level)
-		continue_door_entity.theme = current_saved_run().saved_run_level.theme
-	end
+	local saved_run = current_saved_run()
+	continue_door.update_door(saved_run.saved_run_level, saved_run.saved_run_attempts, saved_run.saved_run_time)
 end
-
-set_callback(function ()
-	update_continue_door_enabledness()
-	
-	-- Replace the texture of the three shortcut doors and the continue door with the theme they lead to.
-	if volcana_door then
-		local x, y, layer = get_position(volcana_door)
-		texture_door_at(x, y, layer, volcana)
-	end
-	if temple_door then
-		local x, y, layer = get_position(temple_door)
-		texture_door_at(x, y, layer, temple)
-	end
-	if ice_door then
-		local x, y, layer = get_position(ice_door)
-		texture_door_at(x, y, layer, ice_caves)
-	end
-	if sunken_door then
-		local x, y, layer = get_position(sunken_door)
-		texture_door_at(x, y, layer, sunken_city)
-	end
-end, ON.CAMP)
 
 -- Spawn an idol that is not interactible in any way. Only spawns the idol if it has been collected
 -- from the level it is being spawned for.
@@ -450,104 +270,46 @@ end
 -- Creates a "room" for the Volcana shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("volcana_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	volcana_door = spawn_door(
-		x + 1,
-		y,
-		layer,
-		world_for_level(volcana),
-		level_for_level(volcana),
-		volcana.theme)
-	volcana_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 3, y, layer, 0, 0)
-	local sign = get_entity(volcana_sign)
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 3, y, layer)
-	spawn_camp_idol_for_level(volcana, x + 2, y, layer)
+	level_sequence.spawn_shortcut(x, y, layer, volcana, level_sequence.SIGN_TYPE.RIGHT)
+	spawn_camp_idol_for_level(volcana, x + 1, y, layer)
 	return true
 end, "volcana_shortcut")
 
 -- Creates a "room" for the Temple shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("temple_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	temple_door = spawn_door(
-		x + 1,
-		y,
-		layer,
-		world_for_level(temple),
-		level_for_level(temple),
-		temple.theme)
-	temple_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 3, y, layer, 0, 0)
-	local sign = get_entity(temple_sign)
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 3, y, layer)
-	spawn_camp_idol_for_level(temple, x + 2, y, layer)
+	level_sequence.spawn_shortcut(x, y, layer, temple, level_sequence.SIGN_TYPE.RIGHT)
+	spawn_camp_idol_for_level(temple, x + 1, y, layer)
 	return true
 end, "temple_shortcut")
 
 -- Creates a "room" for the Ice Caves shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("ice_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	ice_door = spawn_door(
-		x - 1,
-		y,
-		layer,
-		world_for_level(ice_caves),
-		level_for_level(ice_caves),
-		ice_caves.theme)
-	ice_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x - 3, y, layer, 0, 0)
-	local sign = get_entity(ice_sign)
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x - 3, y, layer)
-	spawn_camp_idol_for_level(ice_caves, x - 2, y, layer)
+	level_sequence.spawn_shortcut(x, y, layer, ice_caves, level_sequence.SIGN_TYPE.LEFT)
+	spawn_camp_idol_for_level(ice_caves, x - 1, y, layer)
 	return true
 end, "ice_shortcut")
 
 -- Creates a "room" for the Sunken City shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("sunken_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	sunken_door = spawn_door(
-		x - 1,
-		y,
-		layer,
-		world_for_level(sunken_city),
-		level_for_level(sunken_city),
-		sunken_city.theme)
-	sunken_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x - 3, y, layer, 0, 0)
-	local sign = get_entity(sunken_sign)
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x - 3, y, layer)
-	spawn_camp_idol_for_level(sunken_city, x - 2, y, layer)
+	level_sequence.spawn_shortcut(x, y, layer, sunken_city, level_sequence.SIGN_TYPE.LEFT)
+	spawn_camp_idol_for_level(sunken_city, x - 1, y, layer)
 	return true
 end, "sunken_shortcut")
-
--- Creates a "room" for a shortcut to a level that hasn't been created yet.
-define_tile_code("locked_shortcut")
-set_pre_tile_code_callback(function(x, y, layer)
-	local sign_uid = spawn_entity(ENT_TYPE.ITEM_CONSTRUCTION_SIGN , x - 3, y, layer, 0, 0)
-	local sign = get_entity(sign_uid)
-	sign.flags = set_flag(sign.flags, ENT_FLAG.FACING_LEFT)
-	return true
-end, "locked_shortcut")
 
 -- Creates a "room" for the continue entrance, with a door and a sign.
 define_tile_code("continue_run")
 set_pre_tile_code_callback(function(x, y, layer)
-	continue_door = spawn_door(
-		x + 1,
+	continue_door = level_sequence.spawn_continue_door(
+		x,
 		y,
 		layer,
-		world_for_level(current_saved_run().saved_run_level),
-		level_for_level(current_saved_run().saved_run_level),
-		current_saved_run().saved_run_level.theme)
-	continue_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 3, y, layer, 0, 0)
-	local sign = get_entity(continue_sign)
-	
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	sign.flags = clr_flag(sign.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 3, y, layer)
+		current_saved_run().saved_run_level,
+		current_saved_run().saved_run_attempts,
+		current_saved_run().saved_run_time,
+		level_sequence.SIGN_TYPE.RIGHT)
 	return true
 end, "continue_run")
 
@@ -820,27 +582,7 @@ set_callback(function()
 	
 	-- Show a toast when pressing the door button on the signs near shortcut doors and continue door.
 	if player:is_button_pressed(BUTTON.DOOR) then
-		if player.layer == LAYER.FRONT and volcana_sign and distance(player.uid, volcana_sign) <= 1 then
-			toast("Shortcut to Volcana trial")
-		elseif player.layer == LAYER.FRONT and temple_sign and distance(player.uid, temple_sign) <= 1 then
-			toast("Shortcut to Temple trial")
-		elseif player.layer == LAYER.FRONT and ice_sign and distance(player.uid, ice_sign) <= 1 then
-			toast("Shortcut to Ice Caves trial")
-		elseif player.layer == LAYER.FRONT and sunken_sign and distance(player.uid, sunken_sign) <= 1 then
-			toast("Shortcut to Sunken City trial")
-		elseif player.layer == LAYER.FRONT and continue_sign and distance(player.uid, continue_sign) <= 1 then
-			if hardcore_enabled then
-				toast("Cannot continue in hardcore mode")
-			elseif current_saved_run().has_saved_run then
-				toast("Continue run from " .. current_saved_run().saved_run_level.title)
-			else
-				toast("No run to continue")
-			end
-		elseif player.layer == LAYER.FRONT and continue_door and not current_saved_run().has_saved_run and distance(player.uid, continue_door) <= 1 then
-			toast("No run to continue")
-		elseif player.layer == LAYER.FRONT and continue_door and hardcore_enabled and distance(player.uid, continue_door) <= 1 then
-			toast("Cannot continue in hardcore mode")
-		elseif player.layer == LAYER.BACK and hardcore_sign and distance(player.uid, hardcore_sign) <= .5 then
+		if player.layer == LAYER.BACK and hardcore_sign and distance(player.uid, hardcore_sign) <= .5 then
 			if hardcore_available() then
 				hardcore_enabled = not hardcore_enabled
 				level_sequence.set_keep_progress(not hardcore_enabled)
@@ -1016,34 +758,20 @@ set_callback(function()
 	else
 		player_near_legacy_stats_sign = false
 	end
-	
+end, ON.GAMEFRAME)
+
+level_sequence.set_on_prepare_level(function(level, continuing_run_)
 	local saved_run = current_saved_run()
-	continuing_run = false
-	run_idols_collected = {}
-	idols = 0
-	-- Set some level and state properties for the door that the player is standing by. This is how we make sure to load the correct
-	-- level when entering a door -- it is all based on which door they were closest to when entering.
-	if (volcana_door and distance(players[1].uid, volcana_door) <= 1) or (volcana_sign and distance(player.uid, volcana_sign) <= 1) then
-		level_sequence.load_shortcut(volcana)
-	elseif (temple_door and distance(players[1].uid, temple_door) <= 1) or (temple_sign and distance(player.uid, temple_sign) <= 1) then
-		level_sequence.load_shortcut(temple)
-	elseif (ice_door and distance(player.uid, ice_door) <= 1) or (ice_sign and distance(player.uid, ice_sign) <= 1) then
-		level_sequence.load_shortcut(ice_caves)
-	elseif (sunken_door and distance(players[1].uid, sunken_door) <= 1) or (sunken_sign and distance(player.uid, sunken_sign) <= 1) then
-		level_sequence.load_shortcut(sunken_city)
-	elseif (saved_run.has_saved_run and not hardcore_enabled) and ((continue_door and distance(players[1].uid, continue_door) <= 1) or (continue_sign and distance(player.uid, continue_sign) <= 1)) then
-		level_sequence.load_run(saved_run.saved_run_level,
-			saved_run.saved_run_attempts,
-			saved_run.saved_run_time)
+	if continuing_run_ then
 		continuing_run = true
 		idols = saved_run.saved_run_idol_count
 		run_idols_collected = saved_run.saved_run_idols_collected
 	else
-		-- If not next to any door, just set the state to the initial level. This will be overridden
-		-- before actually entering a door, but is useful for showing GUI in the Camp.
-		level_sequence.load_run(level_sequence.levels()[1], 0, 0)
+		continuing_run = false
+		idols = 0
+		run_idols_collected = {}
 	end
-end, ON.GAMEFRAME)
+end)
 
 -- Sorry, Ana...
 set_post_entity_spawn(function (entity)
@@ -1294,7 +1022,6 @@ end
 
 -- Since we are keeping track of time for the entire run even through deaths and resets, we must track
 -- what the time was on resets and level transitions.
-local started = false
 set_callback(function ()
     if state.theme == THEME.BASE_CAMP then return end
 	if level_sequence.run_in_progress() then 
@@ -1320,7 +1047,7 @@ function save_current_run_stats()
 	if not level_sequence.took_shortcut() and
 			not hardcore_enabled and
 			state.theme ~= THEME.BASE_CAMP and
-			started then
+			level_sequence.run_in_progress() then
 		local saved_run = current_saved_run()
 		saved_run.saved_run_attempts = run_state.attempts
 		saved_run.saved_run_idol_count = idols
@@ -1332,7 +1059,7 @@ function save_current_run_stats()
 end
 
 set_callback(function()
-	if started and state.theme ~= THEME.BASE_CAMP then
+	if level_sequence.run_in_progress() and state.theme ~= THEME.BASE_CAMP then
 		-- This doesn't actually save to file every frame, it just updates the properties that will be saved.
 		save_current_run_stats()
 	end
@@ -1348,16 +1075,8 @@ end, ON.FRAME)
 
 -- Leaving these variables set between resets can lead to undefined behavior due to the high likelyhood of entities being reused.
 function clear_variables()
-	volcana_door = nil
-	volcana_sign = nil
-	temple_door = nil
-	temple_sign = nil
-	ice_door = nil
-	ice_sign = nil
-	sunken_door = nil
-	sunken_sign = nil
 	continue_door = nil
-	continue_sign = nil
+
 	hard_sign = nil
 	easy_sign = nil
 	normal_sign = nil
