@@ -4,6 +4,7 @@ meta.description = 'Challenging platforming puzzles'
 meta.author = 'JayTheBusinessGoose'
 
 local level_sequence = require("LevelSequence/level_sequence")
+local SIGN_TYPE = level_sequence.SIGN_TYPE
 local telescopes = require("Telescopes/telescopes")
 local button_prompts = require("ButtonPrompts/button_prompts")
 local idols = require('idols.lua')
@@ -270,7 +271,7 @@ end
 -- Creates a "room" for the Volcana shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("volcana_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	level_sequence.spawn_shortcut(x, y, layer, volcana, level_sequence.SIGN_TYPE.RIGHT)
+	level_sequence.spawn_shortcut(x, y, layer, volcana, SIGN_TYPE.RIGHT)
 	spawn_camp_idol_for_level(volcana, x + 1, y, layer)
 	return true
 end, "volcana_shortcut")
@@ -278,7 +279,7 @@ end, "volcana_shortcut")
 -- Creates a "room" for the Temple shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("temple_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	level_sequence.spawn_shortcut(x, y, layer, temple, level_sequence.SIGN_TYPE.RIGHT)
+	level_sequence.spawn_shortcut(x, y, layer, temple, SIGN_TYPE.RIGHT)
 	spawn_camp_idol_for_level(temple, x + 1, y, layer)
 	return true
 end, "temple_shortcut")
@@ -286,7 +287,7 @@ end, "temple_shortcut")
 -- Creates a "room" for the Ice Caves shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("ice_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	level_sequence.spawn_shortcut(x, y, layer, ice_caves, level_sequence.SIGN_TYPE.LEFT)
+	level_sequence.spawn_shortcut(x, y, layer, ice_caves, SIGN_TYPE.LEFT)
 	spawn_camp_idol_for_level(ice_caves, x - 1, y, layer)
 	return true
 end, "ice_shortcut")
@@ -294,7 +295,7 @@ end, "ice_shortcut")
 -- Creates a "room" for the Sunken City shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("sunken_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	level_sequence.spawn_shortcut(x, y, layer, sunken_city, level_sequence.SIGN_TYPE.LEFT)
+	level_sequence.spawn_shortcut(x, y, layer, sunken_city, SIGN_TYPE.LEFT)
 	spawn_camp_idol_for_level(sunken_city, x - 1, y, layer)
 	return true
 end, "sunken_shortcut")
@@ -309,7 +310,7 @@ set_pre_tile_code_callback(function(x, y, layer)
 		current_saved_run().saved_run_level,
 		current_saved_run().saved_run_attempts,
 		current_saved_run().saved_run_time,
-		level_sequence.SIGN_TYPE.RIGHT)
+		SIGN_TYPE.RIGHT)
 	return true
 end, "continue_run")
 
