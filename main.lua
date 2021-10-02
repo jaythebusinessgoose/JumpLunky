@@ -7,6 +7,7 @@ local level_sequence = require("LevelSequence/level_sequence")
 local SIGN_TYPE = level_sequence.SIGN_TYPE
 local telescopes = require("Telescopes/telescopes")
 local button_prompts = require("ButtonPrompts/button_prompts")
+local action_signs = require('action_signs')
 require('idols')
 local sound = require('play_sound')
 local journal = require('journal')
@@ -209,54 +210,129 @@ set_pre_tile_code_callback(function(x, y, layer)
 end, "dwelling_idol")
 
 local tunnel_x, tunnel_y, tunnel_layer
-local hardcore_sign, easy_sign, normal_sign, hard_sign, stats_sign, legacy_stats_sign
-local hardcore_tv, easy_tv, normal_tv, hard_tv, stats_tv, legacy_stats_tv
 -- Spawn tunnel, and spawn the difficulty and mode signs relative to her position.
 define_tile_code("tunnel_position")
 set_pre_tile_code_callback(function(x, y, layer)
 	tunnel_x, tunnel_y, tunnel_layer = x, y, layer
-	
-	hardcore_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 3, y, layer, 0, 0)
-	local hardcore_sign_entity = get_entity(hardcore_sign)
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	hardcore_sign_entity.flags = clr_flag(hardcore_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	hardcore_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.INTERACT, x + 3, y, layer)
-	
-	easy_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 6, y, layer, 0, 0)
-	local easy_sign_entity = get_entity(easy_sign)
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	easy_sign_entity.flags = clr_flag(easy_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	easy_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.INTERACT, x + 6, y, layer)
-	
-	normal_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 7, y, layer, 0, 0)
-	local normal_sign_entity = get_entity(normal_sign)
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	normal_sign_entity.flags = clr_flag(normal_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	normal_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.INTERACT, x + 7, y, layer)
-	
-	hard_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 8, y, layer, 0, 0)
-	local hard_sign_entity = get_entity(hard_sign)
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	hard_sign_entity.flags = clr_flag(hard_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	hard_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.INTERACT, x + 8, y, layer)
-	
-	stats_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 10, y, layer, 0, 0)
-	local stats_sign_entity = get_entity(stats_sign)
-	-- This stops the sign from displaying its default toast text when pressing the door button.
-	stats_sign_entity.flags = clr_flag(stats_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-	stats_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 10, y, layer)
-	
+
+	-- Hardcore mode sign
+	action_signs.spawn_sign(x + 3, y, layer, button_prompts.PROMPT_TYPE.INTERACT, function()
+		if hardcore_available() then
+			set_hardcore_enabled(not game_state.hardcore_enabled)
+			game_state.hardcore_previously_enabled = true
+			save_data()
+			if game_state.hardcore_enabled then
+				toast("Hardcore mode enabled")
+			else
+				toast("Hardcore mode disabled")
+			end
+		else
+			toast("Collect more idols to unlock hardcore mode")
+		end
+	end, function(sign)
+		cancel_speechbubble()
+		set_timeout(function()
+			if game_state.hardcore_enabled then
+				say(sign.uid, "Hardcore mode (enabled)", 0, true)
+			else
+				say(sign.uid, "Hardcore mode", 0, true)
+			end
+		end, 1)
+	end)
+
+	-- Easy difficulty sign.
+	action_signs.spawn_sign(x + 6, y, layer, button_prompts.PROMPT_TYPE.INTERACT, function()
+		if game_state.difficulty ~= DIFFICULTY.EASY then
+			set_difficulty(DIFFICULTY.EASY)
+			save_data()
+			toast("Easy mode enabled")
+		end
+	end, function(sign)
+		cancel_speechbubble()
+		set_timeout(function()
+			if game_state.difficulty == DIFFICULTY.EASY then
+				say(sign.uid, "Easy mode (enabled)", 0, true)
+			else
+				say(sign.uid, "Easy mode", 0, true)
+			end
+		end, 1)
+	end)
+
+	-- Normal difficulty sign.
+	action_signs.spawn_sign(x + 7, y, layer, button_prompts.PROMPT_TYPE.INTERACT, function()
+		if game_state.difficulty ~= DIFFICULTY.NORMAL then
+			if game_state.difficulty == DIFFICULTY.EASY then
+				toast("Easy mode disabled")
+			elseif game_state.difficulty == DIFFICULTY.HARD then
+				toast("Hard mode disabled")
+			end
+			set_difficulty(DIFFICULTY.NORMAL)
+			save_data()
+		end
+	end, function(sign)
+		cancel_speechbubble()
+		set_timeout(function()
+			if game_state.difficulty == DIFFICULTY.NORMAL then
+				say(sign.uid, "Normal mode (enabled)", 0, true)
+			else
+				say(sign.uid, "Normal mode", 0, true)
+			end
+		end, 1)
+	end)
+
+	-- Hard difficulty sign.
+	action_signs.spawn_sign(x + 8, y, layer, button_prompts.PROMPT_TYPE.INTERACT, function()
+		if game_state.difficulty ~= DIFFICULTY.HARD then
+			set_difficulty(DIFFICULTY.HARD)
+			save_data()
+			toast("Hard mode enabled")
+		end
+	end, function(sign)
+		cancel_speechbubble()
+		set_timeout(function()
+			if game_state.difficulty == DIFFICULTY.HARD then
+				say(sign.uid, "Hard mode (enabled)", 0, true)
+			else
+				say(sign.uid, "Hard mode", 0, true)
+			end
+		end, 1)
+	end)
+
+	-- Stats sign opens journal.
+	action_signs.spawn_sign(x + 10, y, layer, button_prompts.PROMPT_TYPE.VIEW, function()
+		journal.show(game_state.stats, game_state.hardcore_stats, game_state.difficulty, 6)
+
+		-- Cancel speech bubbles so they don't show above stats.
+		cancel_speechbubble()
+		-- Hide the prompt so it doesn't show above stats.
+		button_prompts.hide_button_prompts(true)
+	end, function(sign)
+		cancel_speechbubble()
+		set_timeout(function()
+			say(sign.uid, "Stats", 0, true)
+		end, 1)
+	end)
+
 	if game_state.legacy_stats.normal and
 			game_state.legacy_stats.easy and
 			game_state.legacy_stats.hard and
 			game_state.legacy_hardcore_stats.normal and
 			game_state.legacy_hardcore_stats.easy and
 			game_state.legacy_hardcore_stats.hard then
-		legacy_stats_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 11, y, layer, 0, 0)
-		local legacy_stats_sign_entity = get_entity(legacy_stats_sign)
-		-- This stops the sign from displaying its default toast text when pressing the door button.
-		legacy_stats_sign_entity.flags = clr_flag(legacy_stats_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
-		legacy_stats_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 11, y, layer)
+		-- Legacy stats sign opens journal; only spawns if legacy stats exist.
+		action_signs.spawn_sign(x + 11, y, layer, button_prompts.PROMPT_TYPE.VIEW, function()
+			journal.show(game_state.legacy_stats, game_state.legacy_hardcore_stats, game_state.difficulty, 6)
+	
+			-- Cancel speech bubbles so they don't show above stats.
+			cancel_speechbubble()
+			-- Hide the prompt so it doesn't show above stats.
+			button_prompts.hide_button_prompts(true)
+		end, function(sign)
+			cancel_speechbubble()
+			set_timeout(function()
+				say(sign.uid, "Legacy Stats", 0, true)
+			end, 1)
+		end)
 	end
 end, "tunnel_position")
 
@@ -315,36 +391,6 @@ journal.set_on_journal_closed(function()
 	button_prompts.hide_button_prompts(false)
 end)
 
-set_callback(function()
-	if #players < 1 then return end
-	local player = players[1]
-	
-	-- Show the stats journal when pressing the door button by the sign.
-	if player:is_button_pressed(BUTTON.DOOR) and 
-			stats_sign and get_entity(stats_sign) and
-			player.layer == get_entity(stats_sign).layer and 
-			distance(player.uid, stats_sign) <= .5 then
-		journal.show(game_state.stats, game_state.hardcore_stats, game_state.difficulty, 6)
-
-		-- Cancel speech bubbles so they don't show above stats.
-		cancel_speechbubble()
-		-- Hide the prompt so it doesn't show above stats.
-		button_prompts.hide_button_prompts(true)
-	end
-
-	-- Show the legacy stats journal when pressing the door button by the sign.
-	if player:is_button_pressed(BUTTON.DOOR) and
-			legacy_stats_sign and 
-			player.layer == get_entity(legacy_stats_sign).layer and
-			distance(player.uid, legacy_stats_sign) <= .5 then
-		journal.show(game_state.legacy_stats, game_state.legacy_hardcore_stats, game_state.difficulty, 6)
-
-		-- Cancel speech bubbles so they don't show above stats.
-		cancel_speechbubble()
-		-- Hide the prompt so it doesn't show above stats.
-		button_prompts.hide_button_prompts(true)
-	end
-end, ON.GAMEFRAME)
 
 local tunnel_enter_displayed
 local tunnel_exit_displayed
@@ -373,62 +419,11 @@ set_callback(function()
 	end
 end, ON.GAMEFRAME)
 
-local player_near_hardcore_sign = false
-local player_near_easy_sign = false
-local player_near_normal_sign = false
-local player_near_hard_sign = false
-local player_near_stats_sign = false
-local player_near_legacy_stats_sign = false
-
 set_callback(function()
 	if state.theme ~= THEME.BASE_CAMP then return end
 	if #players < 1 then return end
 	local player = players[1]
-	
-	-- Show a toast when pressing the door button on the signs near shortcut doors and continue door.
-	if player:is_button_pressed(BUTTON.DOOR) then
-		if player.layer == LAYER.BACK and hardcore_sign and distance(player.uid, hardcore_sign) <= .5 then
-			if hardcore_available() then
-				set_hardcore_enabled(not game_state.hardcore_enabled)
-				game_state.hardcore_previously_enabled = true
-				save_data()
-				if game_state.hardcore_enabled then
-					toast("Hardcore mode enabled")
-				else
-					toast("Hardcore mode disabled")
-				end
-			else
-				toast("Collect more idols to unlock hardcore mode")
-			end
-		elseif player.layer == get_entity(easy_sign).layer and distance(player.uid, easy_sign) <= .5 then
-			if game_state.difficulty ~= DIFFICULTY.EASY then
-				set_difficulty(DIFFICULTY.EASY)
-				save_data()
-				toast("Easy mode enabled")
-			end
-		elseif player.layer == get_entity(hard_sign).layer and distance(player.uid, hard_sign) <= .5 then
-			if hardcore_available() then
-				if game_state.difficulty ~= DIFFICULTY.HARD then
-					set_difficulty(DIFFICULTY.HARD)
-					save_data()
-					toast("Hard mode enabled")
-				end
-			else 
-				toast("collect more idols to unlock hard mode")
-			end
-		elseif player.layer == get_entity(normal_sign).layer and distance(player.uid, normal_sign) <= .5 then
-			if game_state.difficulty ~= DIFFICULTY.NORMAL then
-				if game_state.difficulty == DIFFICULTY.EASY then
-					toast("Easy mode disabled")
-				elseif game_state.difficulty == DIFFICULTY.HARD then
-					toast("Hard mode disabled")
-				end
-				set_difficulty(DIFFICULTY.NORMAL)
-				save_data()
-			end
-		end
-	end
-	
+
 	-- Speech bubbles for Tunnel and mode signs.
 	if tunnel and player.layer == tunnel.layer and distance(player.uid, tunnel.uid) <= 1 then
 		if not tunnel_enter_displayed then
@@ -474,94 +469,6 @@ set_callback(function()
 				end
 			end, 1)
 		end
-	end
-	if hardcore_sign and player.layer == get_entity(hardcore_sign).layer and distance(player.uid, hardcore_sign) <= .5 then
-		-- When passing by the sign, read out what the sign is for.
-		if not player_near_hardcore_sign then
-			cancel_speechbubble()
-			player_near_hardcore_sign = true
-			set_timeout(function()
-				if game_state.hardcore_enabled then
-					say(hardcore_sign, "Hardcore mode (enabled)", 0, true)
-				else
-					say(hardcore_sign, "Hardcore mode", 0, true)
-				end
-			end, 1)
-		end
-	else
-		player_near_hardcore_sign = false
-	end
-	if easy_sign and player.layer == get_entity(easy_sign).layer and distance(player.uid, easy_sign) <= .5 then
-		-- When passing by the sign, read out what the sign is for.
-		if not player_near_easy_sign then
-			cancel_speechbubble()
-			player_near_easy_sign = true
-			set_timeout(function()
-				if game_state.difficulty == DIFFICULTY.EASY then
-					say(easy_sign, "Easy mode (enabled)", 0, true)
-				else
-					say(easy_sign, "Easy mode", 0, true)
-				end
-			end, 1)
-		end
-	else
-		player_near_easy_sign = false
-	end
-	if normal_sign and player.layer == get_entity(normal_sign).layer and distance(player.uid, normal_sign) <= .5 then
-		-- When passing by the sign, read out what the sign is for.
-		if not player_near_normal_sign then
-			cancel_speechbubble()
-			player_near_normal_sign = true
-			set_timeout(function()
-				if game_state.difficulty == DIFFICULTY.NORMAL then
-					say(normal_sign, "Normal mode (enabled)", 0, true)
-				else
-					say(normal_sign, "Normal mode", 0, true)
-				end
-			end, 1)
-		end
-	else
-		player_near_normal_sign = false
-	end
-	if hard_sign and player.layer == get_entity(hard_sign).layer and distance(player.uid, hard_sign) <= .5 then
-		-- When passing by the sign, read out what the sign is for.
-		if not player_near_hard_sign then
-			cancel_speechbubble()
-			player_near_hard_sign = true
-			set_timeout(function()
-				if game_state.difficulty == DIFFICULTY.HARD then
-					say(hard_sign, "Hard mode (enabled)", 0, true)
-				else
-					say(hard_sign, "Hard mode", 0, true)
-				end
-			end, 1)
-		end
-	else
-		player_near_hard_sign = false
-	end
-	if stats_sign and player.layer == get_entity(stats_sign).layer and distance(player.uid, stats_sign) <= .5 then
-		-- When passing by the sign, read out what the sign is for.
-		if not player_near_stats_sign then
-			cancel_speechbubble()
-			player_near_stats_sign = true
-			set_timeout(function()
-				say(stats_sign, "Stats", 0, true)
-			end, 1)
-		end
-	else
-		player_near_stats_sign = false
-	end
-	if legacy_stats_sign and player.layer == get_entity(legacy_stats_sign).layer and distance(player.uid, legacy_stats_sign) <= .5 then
-		-- When passing by the sign, read out what the sign is for.
-		if not player_near_legacy_stats_sign then
-			cancel_speechbubble()
-			player_near_legacy_stats_sign = true
-			set_timeout(function()
-				say(legacy_stats_sign, "Legacy Stats", 0, true)
-			end, 1)
-		end
-	else
-		player_near_legacy_stats_sign = false
 	end
 end, ON.GAMEFRAME)
 
@@ -903,21 +810,10 @@ end, ON.FRAME)
 function clear_variables()
 	continue_door = nil
 
-	hard_sign = nil
-	easy_sign = nil
-	normal_sign = nil
-	hardcore_sign = nil
-	stats_sign = nil
-	legacy_stats_sign = nil
 	tunnel_x = nil
 	tunnel_y = nil
 	tunnel_layer = nil
-	tunnel = nil
-	
-	player_near_easy_sign = false
-	player_near_hard_sign = false
-	player_near_normal_sign = false
-	player_near_hardcore_sign = false
+	tunnel = nil	
 end
 
 set_callback(function()
