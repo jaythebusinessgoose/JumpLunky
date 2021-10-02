@@ -813,7 +813,7 @@ function clear_variables()
 	tunnel_x = nil
 	tunnel_y = nil
 	tunnel_layer = nil
-	tunnel = nil	
+	tunnel = nil
 end
 
 set_callback(function()
@@ -846,6 +846,3 @@ end, ON.SAVE)
 --------------------
 ---- /SAVE DATA ----
 --------------------
-
-set_hardcore_enabled(game_state.hardcore_enabled)
-set_difficulty(game_state.difficulty)
