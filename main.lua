@@ -631,7 +631,6 @@ level_sequence.set_on_completed_level(function(completed_level, next_level)
 end)
 
 level_sequence.set_on_win(function(attempts, total_time)
-	print(f'attempts: {attempts} total_time: {total_time}')
 	local current_stats = game_state.stats.current_stats()
 	local stats_hardcore = game_state.hardcore_stats.current_stats()
 	if not level_sequence.took_shortcut() then

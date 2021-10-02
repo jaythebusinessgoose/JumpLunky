@@ -174,22 +174,18 @@ function hud.activate()
                 texty = texty - th
             end
         else
-            print("here we are")
             local texts = {}
             if hud_state.difficulty == DIFFICULTY.EASY then
                 texts[#texts+1] = 'Easy mode'
             elseif hud_state.difficulty == DIFFICULTY.HARD then
                 texts[#texts+1] = 'Hard mode'
             end
-            print("and here")
             local idols_text = ""
             if hud_state.idols > 0 then
                 idols_text = f'     Idols: {hud_state.idols}'
             end
-            print("here?")
             texts[#texts+1] = f'Deaths: {hud_state.attempts - 1}{idols_text}'
             
-            print(inspect(texts))
             local texty = -0.935
             for i = #texts,1,-1 do
                 local text = texts[i]

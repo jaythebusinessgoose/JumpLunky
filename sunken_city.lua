@@ -351,7 +351,6 @@ sunken_city.load_level = function()
                         elseif overall_state.idol_collected then
                             collected = IDOL_COLLECTED_STATE.COLLECTED
                         end
-                        print(f'idol_state: {collected}')
                         spawn_idol(
                             rewardx,
                             rewardy,
