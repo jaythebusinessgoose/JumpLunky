@@ -190,6 +190,7 @@ function journal.activate()
             
         local current_stats = journal_state.stats.stats_for_difficulty(journal_state.difficulty)
         local current_hardcore_stats = journal_state.hardcore_stats.stats_for_difficulty(journal_state.difficulty)
+        local format_time = format_time
 
         local stat_texts = {}
         local hardcore_stat_texts = {}
