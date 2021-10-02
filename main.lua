@@ -816,7 +816,7 @@ level_sequence.set_on_post_level_generation(function(level)
 	end
 end)
 
-level_sequence.set_on_completed_level(function(completed_level, next_level, initial_level)
+level_sequence.set_on_completed_level(function(completed_level, next_level)
 	if not next_level then return end
 	-- Update stats for the current difficulty mode.
 	local stats = current_stats()
@@ -824,21 +824,19 @@ level_sequence.set_on_completed_level(function(completed_level, next_level, init
 	local best_level_index = level_sequence.index_of_level(stats.best_level)
 	local hardcore_best_level_index = level_sequence.index_of_level(stats_hardcore.best_level)
 	local current_level_index = level_sequence.index_of_level(next_level)
-	local initial_level_index = level_sequence.index_of_level(initial_level)
 	-- Update the PB if the new level has not been reached yet.
 	if (not best_level_index or current_level_index > best_level_index) and
-			initial_level_index == 1 then
+			not level_sequence.took_shortcut() then
 		stats.best_level = next_level
 	end
 	if hardcore_enabled and
 			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
-			initial_level_index == 1 then
+			not level_sequence.took_shortcut() then
 		stats_hardcore.best_level = next_level
 	end
 end)
 
-level_sequence.set_on_win(function(attempts, total_time, initial_level)
-	local initial_level_index = level_sequence.index_of_level(initial_level)
+level_sequence.set_on_win(function(attempts, total_time)
 	local stats = current_stats()
 	local stats_hardcore = current_hardcore_stats()
 	if not level_sequence.took_shortcut() then
@@ -939,12 +937,12 @@ set_callback(function ()
 	local current_level = level_sequence.get_run_state().current_level
 	local current_level_index = level_sequence.index_of_level(current_level)
 	if (not best_level_index or current_level_index > best_level_index) and
-			initial_level_index == 1 then
+			not level_sequence.took_shortcut() then
 		stats.best_level = current_level
 	end
 	if hardcore_enabled and
 			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
-			initial_level_index == 1 then
+			not level_sequence.took_shortcut() then
 		stats_hardcore.best_level = current_level
 	end
 end, ON.RESET)
