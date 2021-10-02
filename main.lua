@@ -10,6 +10,7 @@ local button_prompts = require("ButtonPrompts/button_prompts")
 local idols = require('idols')
 local sound = require('play_sound')
 local journal = require('journal')
+local win_ui = require('win')
 local clear_embeds = require('clear_embeds')
 local DIFFICULTY = require('difficulty')
 
@@ -24,8 +25,8 @@ level_sequence.set_levels({dwelling, volcana, temple, ice_caves, sunken_city})
 local continuing_run = false
 local save_context
 
-local initial_bombs = 0
-local initial_ropes = 0
+local initial_bombs = 40
+local initial_ropes = 40
 
 local current_difficulty = DIFFICULTY.NORMAL
 
@@ -97,16 +98,6 @@ local function current_saved_run()
 		return normal_saved_run
 	end
 end
-
--- Whether the win screen should currently be showing.
-local win = false
-
--- Stats for the current completion.
-completion_time = 0
-completion_time_new_pb = false
-completion_deaths = 0
-completion_deaths_new_pb = false
-completion_idols = 0
 
 -- Whether in a game and not in the menus -- including in the base camp.
 local has_seen_base_camp = false
@@ -642,12 +633,9 @@ level_sequence.set_on_win(function(attempts, total_time)
 	local current_stats = stats.current_stats()
 	local stats_hardcore = hardcore_stats.current_stats()
 	if not level_sequence.took_shortcut() then
-		win = true
-		current_stats.completions = current_stats.completions + 1
-		completion_time = total_time
-		completion_deaths = attempts - 1
-		completion_idols = idols
+		local deaths = attempts - 1
 
+		current_stats.completions = current_stats.completions + 1
 		if hardcore_enabled then
 			stats_hardcore.completions = stats_hardcore.completions + 1
 		else
@@ -660,26 +648,25 @@ level_sequence.set_on_win(function(attempts, total_time)
 			saved_run.saved_run_level = nil
 			saved_run.saved_run_time = nil
 		end
-				
+			
+		local new_time_pb = false
 		if not current_stats.best_time or
 				current_stats.best_time == 0 or
-				completion_time < current_stats.best_time then
-					current_stats.best_time = completion_time
-			completion_time_new_pb = true
+				total_time < current_stats.best_time then
+			current_stats.best_time = total_time
+			new_time_pb = true
 			if current_difficulty ~= DIFFICULTY.EASY then
 				current_stats.best_time_idol_count = idols
 			end
-			current_stats.best_time_death_count = completion_deaths
-		else
-			completion_time_new_pb = false
+			current_stats.best_time_death_count = deaths
 		end
 
 		if hardcore_enabled and
 				(not stats_hardcore.best_time or
 				stats_hardcore.best_time == 0 or
-				completion_time < stats_hardcore.best_time) then
-			stats_hardcore.best_time = completion_time
-			completion_time_new_pb = true
+				total_time < stats_hardcore.best_time) then
+			stats_hardcore.best_time = total_time
+			new_time_pb = true
 			if current_difficulty ~= DIFFICULTY.EASY then
 				stats_hardcore.best_time_idol_count = idols
 			end
@@ -689,53 +676,49 @@ level_sequence.set_on_win(function(attempts, total_time)
 			current_stats.max_idol_completions = current_stats.max_idol_completions + 1
 			if not current_stats.max_idol_best_time or
 					current_stats.max_idol_best_time == 0 or
-					completion_time < current_stats.max_idol_best_time then
-				current_stats.max_idol_best_time = completion_time
+					total_time < current_stats.max_idol_best_time then
+				current_stats.max_idol_best_time = total_time
 			end
 			if hardcore_enabled then
 				stats_hardcore.max_idol_completions = stats_hardcore.max_idol_completions + 1
-				if not stats_hardcore.max_idol_best_time or stats_hardcore.max_idol_best_time == 0 or completion_time < stats_hardcore.max_idol_best_time then
-					stats_hardcore.max_idol_best_time = completion_time
+				if not stats_hardcore.max_idol_best_time or
+						stats_hardcore.max_idol_best_time == 0 or
+						total_time < stats_hardcore.max_idol_best_time then
+					stats_hardcore.max_idol_best_time = total_time
 				end
 			end
 		end
 		
+		local new_deaths_pb = false
 		if not current_stats.least_deaths_completion or
-				completion_deaths < current_stats.least_deaths_completion or
-				(completion_deaths == current_stats.least_deaths_completion and
-				 completion_time < current_stats.least_deaths_completion_time) then
+				deaths < current_stats.least_deaths_completion or
+				(deaths == current_stats.least_deaths_completion and
+				 total_time < current_stats.least_deaths_completion_time) then
 			if not current_stats.least_deaths_completion or
-					completion_deaths < current_stats.least_deaths_completion then
-				completion_deaths_new_pb = true
+					deaths < current_stats.least_deaths_completion then
+				new_deaths_pb = true
 			end
-			current_stats.least_deaths_completion = completion_deaths
-			current_stats.least_deaths_completion_time = completion_time
+			current_stats.least_deaths_completion = deaths
+			current_stats.least_deaths_completion_time = total_time
 			if attempts == 1 then
 				current_stats.deathless_completions = current_stats.deathless_completions + 1
 			end
-		else
-			completion_deaths_new_pb = false
 		end 
+
+		win_ui.win(
+			total_time,
+			deaths,
+			idols,
+			current_difficulty,
+			stats,
+			hardcore_stats,
+			hardcore_enabled,
+			#level_sequence.levels(),
+			new_time_pb,
+			new_deaths_pb)
 	end 
 	warp(1, 1, THEME.BASE_CAMP)
 end)
-
-set_callback(function ()
-    if win and state.theme == THEME.BASE_CAMP then	
-		local player_slot = state.player_inputs.player_slot_1
-		-- Show the win screen until the player presses the jump button.
-		if #players > 0 and test_flag(player_slot.buttons, 1) then
-			win = false
-			-- Re-enable the menu when the game is resumed.
-			state.level_flags = set_flag(state.level_flags, 20)
-		elseif #players > 0 and state.time_total > 120 then
-			-- Stun the player while the win screen is showing so that they do not accidentally move or take actions.
-			players[1]:stun(2)
-			-- Disable the pause menu while the win screen is showing.
-			state.level_flags = clr_flag(state.level_flags, 20)
-		end
-    end
-end, ON.GAMEFRAME)
 
 set_callback(function ()
 	-- Update the PB if the new level has not been reached yet. This is only really for the first time entering Dwelling,
@@ -832,8 +815,8 @@ end
 -- what the time was on resets and level transitions.
 set_callback(function ()
     if state.theme == THEME.BASE_CAMP then return end
-	if level_sequence.run_in_progress() then 
-		if not hardcore_enabled then			
+	if level_sequence.run_in_progress() then
+		if not hardcore_enabled then
 			save_current_run_stats()
 		end
 		save_data()
@@ -842,7 +825,7 @@ end, ON.RESET)
 
 set_callback(function ()
 	if state.theme == THEME.BASE_CAMP then return end
-	if level_sequence.run_in_progress() and not win then
+	if level_sequence.run_in_progress() and not win_ui.won() then
 		save_current_run_stats()
 		save_data()
 	end
@@ -949,194 +932,6 @@ set_callback(function(ctx)
 	has_seen_base_camp = false
 end, ON.TITLE)
 
-local banner_texture_definition = TextureDefinition.new()
-banner_texture_definition.texture_path = "banner.png"
-banner_texture_definition.width = 540
-banner_texture_definition.height = 118
-banner_texture_definition.tile_width = 540
-banner_texture_definition.tile_height = 118
-banner_texture_definition.sub_image_offset_x = 0
-banner_texture_definition.sub_image_offset_y = 0
-banner_texture_definition.sub_image_width = 540
-banner_texture_definition.sub_image_height = 118
-local banner_texture = define_texture(banner_texture_definition)
-
--- Win state
-set_callback(function(ctx)
-	if not win then return end
-	local color = Color:white()
-	local fontsize = 0.0009
-	local titlesize = 0.0012
-	local w = 1.9
-	local h = 1.8
-	local bannerw = .5
-	local bannerh = .2
-	local bannery = .7
-	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_BASE_SKYNIGHT_0, 0, 0, -3, 3, 3, -3, Color.black())
-	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_BACK_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
-	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_PAGEFLIP_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
-	ctx:draw_screen_texture(banner_texture, 0, 0, -bannerw/2, bannery + bannerh/2, bannerw/2, bannery - bannerh/2, color)
-		
-	local current_stats = stats.current_stats()
-	local current_hardcore_stats = hardcore_stats.current_stats()
-	
-	local stat_texts = {}
-	local pb_stat_texts = {}
-	function add_stat(text)
-		stat_texts[#stat_texts+1] = text
-	end
-	function add_pb_stat(text)
-		pb_stat_texts[#pb_stat_texts+1] = text
-	end
-	
-	add_stat("Congratulations!")
-	if current_difficulty == DIFFICULTY.EASY then
-		add_stat('Easy completion')
-	elseif current_difficulty == DIFFICULTY.HARD then
-		add_stat('Hard completion')
-	else
-		add_stat("")
-	end
-	add_stat("")
-	add_stat("")
-	
-	local empty_stats = 0
-	if completion_deaths_new_pb or completion_time_new_pb then
-		add_stat("New PB!!")
-	else
-		empty_stats = empty_stats + 1
-	end
-	add_stat(f'Time: {format_time(completion_time)}')
-	if not hardcore_enabled then
-		if completion_deaths == 0 then
-			add_stat('Deathless!')
-		else
-			add_stat(f'Deaths: {completion_deaths}')
-		end
-	else
-		empty_stats = empty_stats + 1
-	end
-	local all_idols_text = ""
-	if completion_idols == #level_sequence.levels() then
-		all_idols_text = " (All Idols!)"
-	end
-	if current_difficulty ~= DIFFICULTY.EASY and completion_idols > 0 then
-		add_stat(f'Idols: {completion_idols}{all_idols_text}')
-	else
-		empty_stats = empty_stats + 1
-	end
-	for i=1,empty_stats do
-		add_stat("")
-	end
-	add_stat("")
-	add_stat("")
-	
-	empty_stats = 0
-	add_pb_stat(f'Completions: {current_stats.completions}')
-	if hardcore_enabled then
-		add_pb_stat(f'Hardcore completions: {current_hardcore_stats.completions}')
-	elseif current_stats.deathless_completions and current_stats.deathless_completions > 0 then
-		add_pb_stat(f'Deathless completions: {current_stats.deathless_completions}')
-	else
-		empty_stats = empty_stats + 1
-	end
-	if current_difficulty ~= DIFFICULTY.EASY and
-			hardcore_enabled and
-			current_hardcore_stats.max_idol_completions and
-			current_hardcore_stats.max_idol_completions > 0 then
-		add_pb_stat(f'All idol hardcore completions: {current_hardcore_stats.max_idol_completions}')
-	elseif current_difficulty ~= DIFFICULTY.EASY and
-			not hardcore_enabled and
-			current_stats.max_idol_completions and
-			current_stats.max_idol_completions > 0 then
-		add_pb_stat(f'All idol completions: {current_stats.max_idol_completions}')
-	else
-		empty_stats = empty_stats + 1
-	end
-	
-	for i=1,empty_stats do
-		add_pb_stat("")
-	end
-	
-	add_pb_stat("")
-	
-	add_pb_stat("PBs:")
-	local time_pb_text = ''
-	if completion_time_new_pb then
-		time_pb_text = ' (New PB!)'
-	end
-	local deaths_pb_text = ''
-	if completion_deaths_new_pb then
-		deaths_pb_text = ' (New PB!)'
-	end
-	empty_stats = 0
-	if hardcore_enabled then
-		add_pb_stat(f'Fastest time: {format_time(current_stats.best_time)}{time_pb_text}')
-		add_pb_stat(f'Fastest hardcore time: {format_time(current_hardcore_stats.best_time)}{time_pb_text}')
-		
-		if current_difficulty ~= DIFFICULTY.EASY and
-		current_hardcore_stats.max_idol_best_time and
-				current_hardcore_stats.max_idol_best_time > 0 then
-			add_pb_stat(f'Fastest hardcore all idols: {format_time(current_hardcore_stats.max_idol_best_time)}')
-		else
-			empty_stats = empty_stats + 1
-		end
-		empty_stats = empty_stats + 1
-	else
-		add_pb_stat(f'Fastest time: {format_time(current_stats.best_time)}{time_pb_text}')
-		add_pb_stat(f'Least deaths: {current_stats.least_deaths_completion}{deaths_pb_text}')
-		
-		if current_stats.deathless_completions and
-				current_stats.deathless_completions > 0 and
-				current_stats.least_deaths_completion_time and
-				current_stats.least_deaths_completion_time > 0 then
-			add_pb_stat(f'Fastest deathless: {format_time(current_stats.least_deaths_completion_time)}')
-		else
-			empty_stats = empty_stats + 1
-		end
-		
-		if current_difficulty ~= DIFFICULTY.EASY and
-				current_stats.max_idol_best_time and
-				stacurrent_statsts.max_idol_best_time > 0 then
-			add_pb_stat(f'Fastest all idols: {format_time(current_stats.max_idol_best_time)}')
-		else
-			empty_stats = empty_stats + 1
-		end
-	end	
-	
-	for i=1,empty_stats do
-		add_pb_stat("")
-	end
-	add_pb_stat("")
-	add_pb_stat("")
-	add_pb_stat("")
-	add_pb_stat("Continue \u{83}")
-		
-	local starttexty = .5
-	local statstexty = starttexty
-	local hardcoretexty = starttexty
-	local statstextx = -.65
-	local hardcoretextx = .1
-	local _, textheight = ctx:draw_text_size("TestText,", fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
-	for _, text in ipairs(stat_texts) do
-		local t_color = rgba(0, 0, 36, 230)
-		ctx:draw_text(text, statstextx, statstexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
-		statstexty = statstexty + textheight - .04
-	end
-	for _, text in ipairs(pb_stat_texts) do
-		local t_color = rgba(0, 0, 36, 230)
-		ctx:draw_text(text, hardcoretextx, hardcoretexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
-		hardcoretexty = hardcoretexty + textheight - .04
-	end
-	
-	local stats_title = "VICTORY"
-	local stats_title_color = rgba(255,255,255,255)
-	ctx:draw_text(stats_title, 0, .71, titlesize, titlesize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
-	if hardcore_enabled then
-		ctx:draw_text("Hardcore", statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.RIGHT, VANILLA_FONT_STYLE.ITALIC)
-	end
-end, ON.RENDER_POST_HUD)
-
 set_callback(function (ctx)
     local text_color = rgba(255, 255, 255, 195)
     local w = 1.3
@@ -1150,7 +945,7 @@ set_callback(function (ctx)
 	local current_stats = stats.current_stats()
 	local stats_hardcore = hardcore_stats.current_stats()
 	
-    if win then
+    if win_ui.won() then
 		-- Do not render, showing stats in RENDER_POST_HUD
 	elseif state.theme == THEME.BASE_CAMP then
 		local texts = {}
