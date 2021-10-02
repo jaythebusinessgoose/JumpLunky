@@ -554,9 +554,11 @@ end, ON.GAMEFRAME)
 
 -- Sorry, Ana...
 set_post_entity_spawn(function (entity)
-	if state.theme == THEME.BASE_CAMP and has_seen_base_camp then
-		if has_seen_ana_dead then
+	if has_seen_ana_dead then
+		if state.screen == 11 then
 			entity.x = 1000
+		else
+			entity:set_texture(TEXTURE.DATA_TEXTURES_CHAR_CYAN_0)
 		end
 	end
 end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
