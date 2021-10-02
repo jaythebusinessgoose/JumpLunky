@@ -20,22 +20,22 @@ local sunken_city = require("sunken_city")
 
 level_sequence.set_levels({dwelling, volcana, temple, ice_caves, sunken_city})
 
-continuing_run = false
+local continuing_run = false
 local save_context
 
-initial_bombs = 0
-initial_ropes = 0
+local initial_bombs = 0
+local initial_ropes = 0
 
 local current_difficulty = DIFFICULTY.NORMAL
 
 -- overall state
-total_idols = 0
-idols_collected = {}
-hardcore_enabled = false
-hardcore_previously_enabled = false
+local total_idols = 0
+local idols_collected = {}
+local hardcore_enabled = false
+local hardcore_previously_enabled = false
 
 -- Stats for games played in the default difficulty.
-normal_stats = {
+local normal_stats = {
 	best_time = 0,
 	best_time_idol_count = 0,
 	best_time_death_count = 0,
@@ -49,7 +49,7 @@ normal_stats = {
 }
 
 -- Stats for games played in the easy difficulty.
-easy_stats = {
+local easy_stats = {
 	best_time = 0,
 	best_time_death_count = 0,
 	least_deaths_completion = nil,
@@ -60,7 +60,7 @@ easy_stats = {
 }
 
 -- Stats for games played in the hard difficulty.
-hard_stats = {
+local hard_stats = {
 	best_time = 0,
 	best_time_idol_count = 0,
 	best_time_death_count = 0,
@@ -73,12 +73,12 @@ hard_stats = {
 	completions = 0,
 }
 
-legacy_normal_stats = nil
-legacy_easy_stats = nil
-legacy_hard_stats = nil
+local legacy_normal_stats = nil
+local legacy_easy_stats = nil
+local legacy_hard_stats = nil
 
 -- Stats for games played at the input difficulty.
-function stats_for_difficulty(difficulty)
+local function stats_for_difficulty(difficulty)
 	if difficulty == DIFFICULTY.HARD then
 		return hard_stats
 	elseif difficulty == DIFFICULTY.EASY then
@@ -88,12 +88,12 @@ function stats_for_difficulty(difficulty)
 end
 
 -- Stats for games played in the current difficulty.
-function current_stats()
+local function current_stats()
 	return stats_for_difficulty(current_difficulty)
 end
 
 -- Stats for games played at the input difficulty.
-function legacy_stats_for_difficulty(difficulty)
+local function legacy_stats_for_difficulty(difficulty)
 	if difficulty == DIFFICULTY.HARD then
 		return legacy_hard_stats
 	elseif difficulty == DIFFICULTY.EASY then
@@ -103,12 +103,12 @@ function legacy_stats_for_difficulty(difficulty)
 end
 
 -- Stats for games played in the current difficulty.
-function current_legacy_stats()
+local function current_legacy_stats()
 	return legacy_stats_for_difficulty(current_difficulty)
 end
 
 -- Stats for games played in the default difficulty in hardcore mode.
-hardcore_stats = {
+local hardcore_stats = {
 	best_time = 0,
 	best_level = nil,
 	completions = 0,
@@ -118,14 +118,14 @@ hardcore_stats = {
 }
 
 -- Stats for games played in the easy difficulty in hardcore mode.
-hardcore_stats_easy = {
+local hardcore_stats_easy = {
 	best_time = 0,
 	best_level = nil,
 	completions = 0,
 }
 
 -- Stats for games played in the hard difficulty in hardcore mode.
-hardcore_stats_hard = {
+local hardcore_stats_hard = {
 	best_time = 0,
 	best_level = nil,
 	completions = 0,
@@ -134,12 +134,12 @@ hardcore_stats_hard = {
 	max_idol_best_time = 0,
 }
 
-legacy_hardcore_stats = nil
-legacy_hardcore_stats_easy = nil
-legacy_hardcore_stats_hard = nil
+local legacy_hardcore_stats = nil
+local legacy_hardcore_stats_easy = nil
+local legacy_hardcore_stats_hard = nil
 
 -- Stats for games played at the input difficulty in hardcore mode.
-function hardcore_stats_for_difficulty(difficulty)
+local function hardcore_stats_for_difficulty(difficulty)
 	if difficulty == DIFFICULTY.HARD then
 		return hardcore_stats_hard
 	elseif difficulty == DIFFICULTY.EASY then
@@ -149,12 +149,12 @@ function hardcore_stats_for_difficulty(difficulty)
 end
 
 -- Stats for games played in the current difficulty in hardcore mode.
-function current_hardcore_stats()
+local function current_hardcore_stats()
 	return hardcore_stats_for_difficulty(current_difficulty)
 end
 
 -- Stats for games played at the input difficulty in hardcore mode.
-function legacy_hardcore_stats_for_difficulty(difficulty)
+local function legacy_hardcore_stats_for_difficulty(difficulty)
 	if difficulty == DIFFICULTY.HARD then
 		return legacy_hardcore_stats_hard
 	elseif difficulty == DIFFICULTY.EASY then
@@ -164,15 +164,15 @@ function legacy_hardcore_stats_for_difficulty(difficulty)
 end
 
 -- Stats for games played in the current difficulty in hardcore mode.
-function current_legacy_hardcore_stats()
+local function current_legacy_hardcore_stats()
 	return legacy_hardcore_stats_for_difficulty(current_difficulty)
 end
 
 -- True if the player has seen ana dead in the sunken city level.
-has_seen_ana_dead = false
+local has_seen_ana_dead = false
 
-idols = 0
-run_idols_collected = {}
+local idols = 0
+local run_idols_collected = {}
 
 -- saved run state for the default difficulty.
 local easy_saved_run = {
@@ -202,7 +202,7 @@ local hard_saved_run = {
 	saved_run_idols_collected = {},
 }
 -- saved run state for the current difficulty.
-function current_saved_run()
+local function current_saved_run()
 	if current_difficulty == DIFFICULTY.EASY then
 		return easy_saved_run
 	elseif current_difficulty == DIFFICULTY.HARD then
@@ -219,11 +219,11 @@ local show_legacy_stats = false
 local journal_page = DIFFICULTY.NORMAL
 
 -- Stats for the current completion.
-completion_time = 0
-completion_time_new_pb = false
-completion_deaths = 0
-completion_deaths_new_pb = false
-completion_idols = 0
+local completion_time = 0
+local completion_time_new_pb = false
+local completion_deaths = 0
+local completion_deaths_new_pb = false
+local completion_idols = 0
 
 -- Whether in a game and not in the menus -- including in the base camp.
 local has_seen_base_camp = false
@@ -761,9 +761,9 @@ set_callback(function()
 	end
 end, ON.GAMEFRAME)
 
-level_sequence.set_on_prepare_initial_level(function(level, continuing_run_)
+level_sequence.set_on_prepare_initial_level(function(level, continuing)
 	local saved_run = current_saved_run()
-	if continuing_run_ then
+	if continuing then
 		continuing_run = true
 		idols = saved_run.saved_run_idol_count
 		run_idols_collected = saved_run.saved_run_idols_collected
