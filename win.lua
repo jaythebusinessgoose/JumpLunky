@@ -19,6 +19,8 @@ local win_state = {
     levels = nil,
     new_time_pb = false,
     new_deaths_pb = false,
+
+    on_dismiss = nil,
 }
 
 function win_ui.won()
@@ -61,6 +63,14 @@ function win_ui.clear_win()
     win_state.levels = nil
     win_state.new_time_pb = false
     win_state.new_deaths_pb = false
+    if win_state.on_dismiss then
+        win_state.on_dismiss()
+    end
+    win_state.on_dismiss = nil
+end
+
+function win_ui.set_on_dismiss(on_dismiss)
+    win_state.on_dismiss = on_dismiss
 end
 
 function win_ui.activate()
@@ -287,6 +297,10 @@ function win_ui.deactivate()
     win_state.levels = nil
     win_state.new_time_pb = false
     win_state.new_deaths_pb = false
+    if win_state.on_dismiss then
+        win_state.on_dismiss()
+    end
+    win_state.on_dismiss = nil
 
     if win_state.hud then
         clear_callback(win_state.hud)

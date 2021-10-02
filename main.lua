@@ -11,6 +11,7 @@ local idols = require('idols')
 local sound = require('play_sound')
 local journal = require('journal')
 local win_ui = require('win')
+local bottom_hud = require('bottom_hud')
 local clear_embeds = require('clear_embeds')
 local DIFFICULTY = require('difficulty')
 
@@ -22,11 +23,14 @@ local sunken_city = require("sunken_city")
 
 level_sequence.set_levels({dwelling, volcana, temple, ice_caves, sunken_city})
 
-local continuing_run = false
+-- Forward declare local function
+local update_continue_door_enabledness
+
+-- Store the save context in a local var so we can save whenever we want.
 local save_context
 
-local initial_bombs = 40
-local initial_ropes = 40
+local initial_bombs = 0
+local initial_ropes = 0
 
 local current_difficulty = DIFFICULTY.NORMAL
 
@@ -99,8 +103,25 @@ local function current_saved_run()
 	end
 end
 
--- Whether in a game and not in the menus -- including in the base camp.
-local has_seen_base_camp = false
+local function set_hardcore_enabled(enabled)
+	hardcore_enabled = enabled
+	bottom_hud.update_stats(
+		hardcore_enabled and hardcore_stats.current_stats() or stats.current_stats(),
+		hardcore_enabled,
+		current_difficulty)
+	level_sequence.set_keep_progress(not hardcore_enabled)
+	update_continue_door_enabledness()
+end
+
+local function set_difficulty(difficulty)
+	current_difficulty = difficulty
+	bottom_hud.update_stats(
+		hardcore_enabled and hardcore_stats.current_stats() or stats.current_stats(),
+		hardcore_enabled,
+		current_difficulty)
+	bottom_hud.update_saved_run(current_saved_run())
+	update_continue_door_enabledness()
+end
 
 ---------------
 ---- SOUNDS ---
@@ -127,6 +148,7 @@ end)
 local continue_door
 
 function update_continue_door_enabledness()
+	if not continue_door then return end
 	local saved_run = current_saved_run()
 	continue_door.update_door(saved_run.saved_run_level, saved_run.saved_run_attempts, saved_run.saved_run_time)
 end
@@ -376,10 +398,8 @@ set_callback(function()
 	if player:is_button_pressed(BUTTON.DOOR) then
 		if player.layer == LAYER.BACK and hardcore_sign and distance(player.uid, hardcore_sign) <= .5 then
 			if hardcore_available() then
-				hardcore_enabled = not hardcore_enabled
-				level_sequence.set_keep_progress(not hardcore_enabled)
+				set_hardcore_enabled(not hardcore_enabled)
 				hardcore_previously_enabled = true
-				update_continue_door_enabledness()
 				save_data()
 				if hardcore_enabled then
 					toast("Hardcore mode enabled")
@@ -391,17 +411,15 @@ set_callback(function()
 			end
 		elseif player.layer == get_entity(easy_sign).layer and distance(player.uid, easy_sign) <= .5 then
 			if current_difficulty ~= DIFFICULTY.EASY then
-				current_difficulty = DIFFICULTY.EASY
-				update_continue_door_enabledness()
+				set_difficulty(DIFFICULTY.EASY)
 				save_data()
 				toast("Easy mode enabled")
 			end
 		elseif player.layer == get_entity(hard_sign).layer and distance(player.uid, hard_sign) <= .5 then
 			if hardcore_available() then
 				if current_difficulty ~= DIFFICULTY.HARD then
-					current_difficulty = DIFFICULTY.HARD
-					update_continue_door_enabledness()
-				save_data()
+					set_difficulty(DIFFICULTY.HARD)
+					save_data()
 					toast("Hard mode enabled")
 				end
 			else 
@@ -414,8 +432,7 @@ set_callback(function()
 				elseif current_difficulty == DIFFICULTY.HARD then
 					toast("Hard mode disabled")
 				end
-				current_difficulty = DIFFICULTY.NORMAL
-				update_continue_door_enabledness()
+				set_difficulty(DIFFICULTY.NORMAL)
 				save_data()
 			end
 		end
@@ -705,6 +722,10 @@ level_sequence.set_on_win(function(attempts, total_time)
 			#level_sequence.levels(),
 			new_time_pb,
 			new_deaths_pb)
+		bottom_hud.update_win_state(true)
+		win_ui.set_on_dismiss(function()
+			bottom_hud.update_win_state(false)
+		end)
 	end 
 	warp(1, 1, THEME.BASE_CAMP)
 end)
@@ -729,22 +750,38 @@ set_callback(function ()
 	end
 end, ON.RESET)
 
+local function update_hud_run_entry(continuing)
+	local run_state = level_sequence.get_run_state()
+	local took_shortcut = level_sequence.took_shortcut()
+	bottom_hud.update_run_entry(run_state.initial_level, took_shortcut, continuing)
+end
+
+local function update_hud_run_state()
+	local run_state = level_sequence.get_run_state()
+	bottom_hud.update_run(idols, run_state.attempts, run_state.total_time)
+end
+
 level_sequence.set_on_reset_run(function()
 	run_idols_collected = {}
 	idols = 0
+	update_hud_run_state()
 end)
 
 level_sequence.set_on_prepare_initial_level(function(level, continuing)
 	local saved_run = current_saved_run()
 	if continuing then
-		continuing_run = true
 		idols = saved_run.saved_run_idol_count
 		run_idols_collected = saved_run.saved_run_idols_collected
 	else
-		continuing_run = false
 		idols = 0
 		run_idols_collected = {}
 	end
+	update_hud_run_state()
+	update_hud_run_entry(continuing)
+end)
+
+level_sequence.set_on_level_start(function(level)
+	update_hud_run_state()
 end)
 
 --------------------------------------
@@ -785,6 +822,7 @@ set_vanilla_sound_callback(VANILLA_SOUND.UI_DEPOSIT, VANILLA_SOUND_CALLBACK_TYPE
 	run_idols_collected[level_sequence.get_run_state().current_level.identifier] = true
 	idols = idols + 1
 	total_idols = total_idols + 1
+	update_hud_run_state()
 end)
 
 ---------------
@@ -895,177 +933,6 @@ end, ON.PRE_LOAD_LEVEL_FILES)
 ---- /STATE MANAGEMENT ----
 ---------------------------
 
-----------------------
----- HELPER UTILS ----
-----------------------
-
-function round(num, dp)
-  local mult = 10^(dp or 0)
-  return math.floor(num * mult + 0.5)/mult
-end
-
-function format_time(frames)
-    local seconds = round(frames / 60, 3)
-    local minutes = math.floor(seconds / 60)
-	local hours = math.floor(minutes / 60)
-    local seconds_text = seconds % 60 < 10 and '0' or ''
-    local minutes_text = minutes % 60 < 10 and '0' or ''
-	local hours_prefix = hours < 10 and '0' or ''
-	local hours_text = hours > 0 and f'{hours_prefix}{hours}:' or ''
-    return hours_text .. minutes_text .. tostring(minutes % 60) .. ':' .. seconds_text .. string.format("%.3f", seconds % 60)
-end
-
------------------------
----- /HELPER UTILS ----
------------------------
-
------------
---- GUI ---
------------
-
--- Do not show the GUI unless in the game or in the base camp.
-set_callback(function(ctx)
-	has_seen_base_camp = true
-end, ON.CAMP)
-set_callback(function(ctx)
-	has_seen_base_camp = false
-end, ON.MENU)
-set_callback(function(ctx)
-	has_seen_base_camp = false
-end, ON.TITLE)
-
-set_callback(function (ctx)
-    local text_color = rgba(255, 255, 255, 195)
-    local w = 1.3
-    local h = 1.3
-    local x = 0
-    local y = 0
-	if not has_seen_base_camp then return end
-	
-	-- Display stats, or a win screen, for the current difficulty mode and current saved run.
-	local saved_run = current_saved_run()
-	local current_stats = stats.current_stats()
-	local stats_hardcore = hardcore_stats.current_stats()
-	
-    if win_ui.won() then
-		-- Do not render, showing stats in RENDER_POST_HUD
-	elseif state.theme == THEME.BASE_CAMP then
-		local texts = {}
-		if hardcore_enabled and current_difficulty == DIFFICULTY.EASY then
-			texts[#texts+1] = 'Easy mode (Hardcore)'
-		elseif hardcore_enabled and current_difficulty == DIFFICULTY.HARD then
-			texts[#texts+1] = 'Hard mode (Hardcore)'
-		elseif hardcore_enabled then
-			texts[#texts+1] = 'Hardcore'
-		elseif current_difficulty == DIFFICULTY.EASY then
-			texts[#texts+1] = 'Easy mode'
-		elseif current_difficulty == DIFFICULTY.HARD then
-			texts[#texts+1] = 'Hard mode'
-		end
-		if continuing_run then
-			texts[#texts+1] = "Continue run from " .. saved_run.saved_run_level.title
-			local text = " Time: " .. format_time(saved_run.saved_run_time) .. " Deaths: " .. (saved_run.saved_run_attempts)
-			if saved_run.saved_run_idol_count > 0 then
-				text = text .. " Idols: " .. saved_run.saved_run_idol_count
-			end
-			texts[#texts+1] = text
-		elseif level_sequence.took_shortcut() then
-			texts[#texts+1] = "Shortcut to " .. level_sequence.get_run_state().initial_level.title .. " trial"
-		elseif hardcore_enabled then
-			if stats_hardcore.completions and stats_hardcore.completions > 0 then
-				idol_text = ""
-				if current_difficulty ~= DIFFICULTY.EASY then
-					if stats_hardcore.best_time_idol_count == 1 then
-						idol_text = f' (1 idol)'
-					elseif stats_hardcore.best_time_idol_count > 1 then
-						idol_text = f' ({stats_hardcore.best_time_idol_count} idols)'
-					end
-				end
-				texts[#texts+1] = f'Wins: {stats_hardcore.completions}  PB: {format_time(stats_hardcore.best_time)}{idol_text}'
-			elseif stats_hardcore.best_level then
-				texts[#texts+1] = f'PB: {stats_hardcore.best_level.title}'
-			else
-				texts[#texts+1] = "PB: N/A"
-			end
-		else
-			if current_stats.completions and current_stats.completions > 0 then
-				idol_text = ""
-				if current_difficulty ~= DIFFICULTY.EASY then
-					if current_stats.best_time_idol_count == 1 then
-						idol_text = f' (1 idol)'
-					elseif current_stats.best_time_idol_count > 1 then
-						idol_text = f' ({current_stats.best_time_idol_count} idols)'
-					end
-				end
-				texts[#texts+1] = f'Wins: {current_stats.completions}  PB: {format_time(current_stats.best_time)}{idol_text}'
-			elseif current_stats.best_level then
-				texts[#texts+1] = f'PB: {current_stats.best_level.title}'
-			else
-				texts[#texts+1] = "PB: N/A"
-			end
-		end
-		
-		local texty = -0.935
-		for i = #texts,1,-1 do
-			local text = texts[i]
-			local tw, th = draw_text_size(28, text)
-			ctx:draw_text(0 - tw / 2, texty, 28, text, text_color)
-			texty = texty - th
-		end
-		return
-	elseif not level_sequence.took_shortcut() and hardcore_enabled then
-		local texts = {}
-		if current_difficulty == DIFFICULTY.EASY then
-			texts[#texts+1] = 'Easy mode (Hardcore)'
-		elseif current_difficulty == DIFFICULTY.HARD then
-			texts[#texts+1] = 'Hard mode (Hardcore)'
-		else
-			texts[#texts+1] = 'Hardcore'
-		end
-		if idols > 0 then
-			texts[#texts+1] = f'Idols: {idols}'
-		end
-		
-		
-		local texty = -0.935
-		for i = #texts,1,-1 do
-			local text = texts[i]
-			local tw, th = draw_text_size(28, text)
-			ctx:draw_text(0 - tw / 2, texty, 28, text, text_color)
-			texty = texty - th
-		end
-    elseif not level_sequence.took_shortcut() then
-		local texts = {}
-		if current_difficulty == DIFFICULTY.EASY then
-			texts[#texts+1] = 'Easy mode'
-		elseif current_difficulty == DIFFICULTY.HARD then
-			texts[#texts+1] = 'Hard mode'
-		end
-		
-		local idols_text = ""
-		if idols > 0 then
-			idols_text = f'     Idols: {idols}'
-		end
-		texts[#texts+1] = f'Deaths: {level_sequence.get_run_state().attempts - 1}{idols_text}'
-		
-		local texty = -0.935
-		for i = #texts,1,-1 do
-			local text = texts[i]
-			local tw, th = draw_text_size(28, text)
-			ctx:draw_text(0 - tw / 2, texty, 28, text, text_color)
-			texty = texty - th
-		end
-	else
-		local text = f'{level_sequence.get_run_state().initial_level.title} shortcut practice'
-        local tw, _ = draw_text_size(28, text)
-		ctx:draw_text(0 - tw / 2, -0.935, 28, text, text_color)
-    end
-end, ON.GUIFRAME)
-
-------------
---- /GUI ---
-------------
-
 -------------------
 ---- SAVE DATA ----
 -------------------
@@ -1077,7 +944,7 @@ set_callback(function (ctx)
         local load_data = json.decode(load_data_str)
 		local load_version = load_data.version
 		if load_data.difficulty then
-			current_difficulty = load_data.difficulty
+			set_difficulty(load_data.difficulty)
 		end
 		if not load_version then 
 			normal_stats.best_time = load_data.best_time
@@ -1173,8 +1040,7 @@ set_callback(function (ctx)
 
 		idols_collected = load_data.idol_levels
 		total_idols = load_data.total_idols
-		hardcore_enabled = load_data.hardcore_enabled
-		level_sequence.set_keep_progress(not hardcore_enabled)
+		set_hardcore_enabled(load_data.hardcore_enabled)
 		hardcore_previously_enabled = load_data.hpe
 		
 		function load_saved_run_data(saved_run, saved_run_data)
@@ -1267,3 +1133,6 @@ end, ON.SAVE)
 --------------------
 ---- /SAVE DATA ----
 --------------------
+
+set_hardcore_enabled(hardcore_enabled)
+set_difficulty(current_difficulty)
