@@ -335,9 +335,11 @@ function journal.deactivate()
     if journal_state.hud then
         clear_callback(journal_state.hud)
     end
+    journal_state.hud = nil
     if journal_state.button_handling then
         clear_callback(journal_state.button_handling)
     end
+    journal_state.button_handling = nil
 end
 
 set_callback(function()
