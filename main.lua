@@ -9,6 +9,7 @@ local telescopes = require("Telescopes/telescopes")
 local button_prompts = require("ButtonPrompts/button_prompts")
 local idols = require('idols')
 local sound = require('play_sound')
+local journal = require('journal')
 local clear_embeds = require('clear_embeds')
 local DIFFICULTY = require('difficulty')
 
@@ -99,9 +100,6 @@ end
 
 -- Whether the win screen should currently be showing.
 local win = false
-local show_stats = false
-local show_legacy_stats = false
-local journal_page = DIFFICULTY.NORMAL
 
 -- Stats for the current completion.
 completion_time = 0
@@ -291,13 +289,7 @@ function hardcore_available()
 	return unique_idols_collected() == #level_sequence.levels()
 end
 
-
 -- STATS
-local stats_closed_time = nil
-local last_left_input = nil
-local last_right_input = nil
-local stats_open_button = nil
-local stats_open_button_closed = false
 
 set_journal_enabled(false)
 set_callback(function()
@@ -305,17 +297,19 @@ set_callback(function()
 	local player = players[1]
 	local buttons = read_input(player.uid)
 	-- 8 = Journal
-	if test_flag(buttons, 8) and not show_stats then
-		show_stats = true
-		show_legacy_stats = false
-		steal_input(player.uid)
-		state.level_flags = clr_flag(state.level_flags, 20)
-		journal_page = current_difficulty
-		sound.play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
-		stats_open_button = 8
-		stats_open_button_closed = false
+	if test_flag(buttons, 8) and not journal.showing_stats() then
+		journal.show(stats, hardcore_stats, current_difficulty, 8)
+
+		-- Cancel speech bubbles so they don't show above stats.
+		cancel_speechbubble()
+		-- Hide the prompt so it doesn't show above stats.
+		button_prompts.hide_button_prompts(true)
 	end
 end, ON.GAMEFRAME)
+
+journal.set_on_journal_closed(function()
+	button_prompts.hide_button_prompts(false)
+end)
 
 set_callback(function()
 	if #players < 1 then return end
@@ -326,21 +320,12 @@ set_callback(function()
 			stats_sign and get_entity(stats_sign) and
 			player.layer == get_entity(stats_sign).layer and 
 			distance(player.uid, stats_sign) <= .5 then
-			show_stats = true
-		show_legacy_stats = false
-		-- Do not allow the player to move while showing stats.
-		steal_input(player.uid)
-		-- Disable pausing.
-		state.level_flags = clr_flag(state.level_flags, 20)
+		journal.show(stats, hardcore_stats, current_difficulty, 6)
+
 		-- Cancel speech bubbles so they don't show above stats.
 		cancel_speechbubble()
 		-- Hide the prompt so it doesn't show above stats.
 		button_prompts.hide_button_prompts(true)
-		journal_page = current_difficulty
-		stats_open_button = 6
-		stats_open_button_closed = false
-
-		sound.play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
 	end
 
 	-- Show the legacy stats journal when pressing the door button by the sign.
@@ -348,87 +333,12 @@ set_callback(function()
 			legacy_stats_sign and 
 			player.layer == get_entity(legacy_stats_sign).layer and
 			distance(player.uid, legacy_stats_sign) <= .5 then
-		show_stats = true
-		show_legacy_stats = true
-		-- Do not allow the player to move while showing stats.
-		steal_input(player.uid)
-		-- Disable pausing.
-		state.level_flags = clr_flag(state.level_flags, 20)
+		journal.show(legacy_stats, legacy_hardcore_stats, current_difficulty, 6)
+
 		-- Cancel speech bubbles so they don't show above stats.
 		cancel_speechbubble()
 		-- Hide the prompt so it doesn't show above stats.
 		button_prompts.hide_button_prompts(true)
-		journal_page = current_difficulty
-		stats_open_button = 6
-		stats_open_button_closed = false
-
-		sound.play_sound(VANILLA_SOUND.UI_JOURNAL_ON)
-	end
-	
-
-	-- Controls while stats journal is opened.
-	if show_stats then
-		-- Gets a bitwise integer that contains the set of pressed buttons while the input is stolen.
-		local buttons = read_stolen_input(player.uid)
-		if not stats_open_button_closed and stats_open_button then
-			if not test_flag(buttons, stats_open_button) then
-				stats_open_button_closed = true
-			end
-		end
-		-- 1 = jump, 2 = whip, 3 = bomb, 4 = rope, 6 = Door, 8 = Journal
-		if test_flag(buttons, 1) or
-				test_flag(buttons, 2) or 
-				test_flag(buttons, 3) or 
-				test_flag(buttons, 4) or 
-				((stats_open_button ~= 6 or stats_open_button_closed) and test_flag(buttons, 6) or 
-				((stats_open_button ~= 8 or stats_open_button_closed) and test_flag(buttons, 8))) then
-			show_stats = false
-			-- Keep track of the time that the stats were closed. This will allow us to enable the player's
-			-- inputs later so that the same input isn't recognized again to cause a bomb to be thrown or another action.
-			stats_closed_time = state.time_level
-			journal_page = DIFFICULTY.NORMAL
-			state.level_flags = set_flag(state.level_flags, 20)
-			stats_open_button = nil
-			stats_open_button_closed = false
-			sound.play_sound(VANILLA_SOUND.UI_JOURNAL_OFF)
-			return
-		end
-		
-		function play_journal_pageflip_sound()
-			sound.play_sound(VANILLA_SOUND.MENU_PAGE_TURN)
-		end
-		
-		-- Change difficulty when pressing left or right.
-		if test_flag(buttons, 9) then -- left_key
-			if not last_left_input or state.time_level - last_left_input > 20 then
-				last_left_input = state.time_level
-				if journal_page > DIFFICULTY.EASY then
-					play_journal_pageflip_sound()
-					journal_page = math.max(journal_page - 1, DIFFICULTY.EASY)				
-				end
-			end
-		else
-			last_left_input = nil
-		end
-		if test_flag(buttons, 10) then -- right_key
-			if not last_right_input or state.time_level - last_right_input > 20 then
-				last_right_input = state.time_level
-				if journal_page < DIFFICULTY.HARD then
-					play_journal_pageflip_sound()
-					journal_page = math.min(journal_page + 1, DIFFICULTY.HARD)
-				end
-			end
-		else
-			last_right_input = nil
-		end
-	elseif stats_closed_time ~= nil and state.time_level  - stats_closed_time > 20 then
-		-- Re-activate the player's inputs 40 frames after the button was pressed to close the stats.
-		-- This gives plenty of time for the player to release the button that was pressed, but also doesn't feel
-		-- too long since it mostly occurs while the camera is moving back.
-		return_input(player.uid)
-		state.level_flags = set_flag(state.level_flags, 20)
-		button_prompts.hide_button_prompts(false)
-		stats_closed_time = nil
 	end
 end, ON.GAMEFRAME)
 
@@ -985,8 +895,6 @@ function clear_variables()
 	tunnel_y = nil
 	tunnel_layer = nil
 	tunnel = nil
-	show_stats = false
-	show_legacy_stats = false
 	
 	player_near_easy_sign = false
 	player_near_hard_sign = false
@@ -1052,152 +960,6 @@ banner_texture_definition.sub_image_offset_y = 0
 banner_texture_definition.sub_image_width = 540
 banner_texture_definition.sub_image_height = 118
 local banner_texture = define_texture(banner_texture_definition)
-
--- Stats page
-set_callback(function(ctx)
-	if not show_stats then return end
-	local color = Color:white()
-	local fontsize = 0.0009
-	local titlesize = 0.0012
-	local w = 1.9
-	local h = 1.8
-	local bannerw = .5
-	local bannerh = .2
-	local bannery = .7
-	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_BACK_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
-	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_PAGEFLIP_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
-	ctx:draw_screen_texture(banner_texture, 0, 0, -bannerw/2, bannery + bannerh/2, bannerw/2, bannery - bannerh/2, color)
-		
-	local current_stats =
-		show_legacy_stats and
-		legacy_stats.stats_for_difficulty(journal_page) or
-		stats.stats_for_difficulty(journal_page)
-	local current_hardcore_stats =
-		show_legacy_stats and
-		legacy_hardcore_stats.stats_for_difficulty(journal_page) or
-		hardcore_stats.stats_for_difficulty(journal_page)
-	-- print(inspect(current_stats))
-	local stat_texts = {}
-	local hardcore_stat_texts = {}
-	function add_stat(text)
-		stat_texts[#stat_texts+1] = text
-	end
-	function add_hardcore_stat(text)
-		hardcore_stat_texts[#hardcore_stat_texts+1] = text
-	end
-	if current_stats.completions > 0 then
-		add_stat(f'Completions: {current_stats.completions}')
-		local empty_stats = 0
-		if journal_page ~= DIFFICULTY.EASY and current_stats.max_idol_completions > 0 then
-			add_stat(f'All idol completions: {current_stats.max_idol_completions}')
-		else
-			empty_stats = empty_stats + 1
-		end
-		if current_stats.deathless_completions > 0 then
-			add_stat(f'Deathless completions: {current_stats.deathless_completions}')
-		else
-			empty_stats = empty_stats + 1
-		end
-		for i=1,empty_stats do
-			add_stat("")
-		end
-		add_stat("")
-		add_stat("")
-		add_stat("PBs:")
-		local idol_text = ''
-		if journal_page ~= DIFFICULTY.EASY and current_stats.best_time_idol_count == 1 then
-			idol_text = '1 idol, '
-		elseif journal_page ~= DIFFICULTY.EASY and current_stats.best_time_idol_count > 0 then
-			idol_text = f'{current_stats.best_time_idol_count} idols, '
-		end
-		local deaths_text = '1 death'
-		if current_stats.best_time_death_count > 1 then
-			deaths_text = f'{current_stats.best_time_death_count} deaths'
-		elseif current_stats.best_time_death_count == 0 then
-			deaths_text = f'deathless'
-		end
-		add_stat(f'Best time: {format_time(current_stats.best_time)} ({idol_text}{deaths_text})')
-		if journal_page ~= DIFFICULTY.EASY and current_stats.max_idol_completions > 0 then
-			add_stat(f'All idols: {format_time(current_stats.max_idol_best_time)}')
-		end
-		if current_stats.deathless_completions > 0 then
-			add_stat(f'Deathless: {format_time(current_stats.least_deaths_completion_time)}')
-		else
-			add_stat(f'Least deaths: {current_stats.least_deaths_completion} ({format_time(current_stats.least_deaths_completion_time)})')
-		end
-	elseif current_stats.best_level then
-		add_stat(f'PB: {current_stats.best_level.title}')
-	else
-		add_stat("PB: N/A")
-	end
-	if current_hardcore_stats.completions > 0 then
-		add_hardcore_stat(f'Completions: {current_hardcore_stats.completions}')
-		if journal_page ~= DIFFICULTY.EASY and current_hardcore_stats.max_idol_completions > 0 then
-			add_hardcore_stat(f'All idol completions: {current_hardcore_stats.max_idol_completions}')
-		else
-			add_hardcore_stat("")
-		end
-		add_hardcore_stat("")
-		add_hardcore_stat("")
-		add_hardcore_stat("")
-		add_hardcore_stat("PBs:")
-		local idol_text = ''
-		if journal_page ~= DIFFICULTY.EASY and current_hardcore_stats.best_time_idol_count == 1 then
-			idol_text = ' (1 idol)'
-		elseif journal_page ~= DIFFICULTY.EASY and current_hardcore_stats.best_time_idol_count > 0 then
-			idol_text = f' ({current_hardcore_stats.best_time_idol_count} idols)'
-		end
-		add_hardcore_stat(f'Best time: {format_time(current_hardcore_stats.best_time)}{idol_text}')
-		if journal_page ~= DIFFICULTY.EASY and current_hardcore_stats.max_idol_completions > 0 then
-			add_hardcore_stat(f'All idols: {format_time(current_hardcore_stats.max_idol_best_time)}')
-		end
-	elseif current_hardcore_stats.best_level then
-		add_hardcore_stat(f'PB: {current_hardcore_stats.best_level.title}')
-	else
-		add_hardcore_stat("PB: N/A")
-	end
-		
-	local starttexty = .5
-	local statstexty = starttexty
-	local hardcoretexty = starttexty
-	local statstextx = -.65
-	local hardcoretextx = .1
-	local _, textheight = ctx:draw_text_size("TestText,", fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
-	for _, text in ipairs(stat_texts) do
-		local t_color = rgba(0, 0, 36, 230)
-		ctx:draw_text(text, statstextx, statstexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
-		statstexty = statstexty + textheight - .04
-	end
-	for _, text in ipairs(hardcore_stat_texts) do
-		local t_color = rgba(0, 0, 36, 230)
-		ctx:draw_text(text, hardcoretextx, hardcoretexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
-		hardcoretexty = hardcoretexty + textheight - .04
-	end
-	
-	local stats_title = "STATS"
-	if journal_page == DIFFICULTY.EASY then
-		stats_title = "EASY"
-	elseif journal_page == DIFFICULTY.HARD then
-		stats_title = "HARD"
-	else
-		stats_title = "STATS"
-	end
-	local stats_title_color = rgba(255,255,255,255)
-	ctx:draw_text(stats_title, 0, .71, titlesize, titlesize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
-	ctx:draw_text("Hardcore", -statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.RIGHT, VANILLA_FONT_STYLE.ITALIC)
-	if show_legacy_stats then
-		ctx:draw_text("Legacy", statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
-	end
-	
-	local buttonsx = .82
-	local buttonssize = .0023
-	if journal_page ~= DIFFICULTY.EASY then
-		ctx:draw_text("\u{8B}", -buttonsx, 0, buttonssize, buttonssize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
-	end
-	if journal_page ~= DIFFICULTY.HARD then
-		ctx:draw_text("\u{8C}", buttonsx, 0, buttonssize, buttonssize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
-	end
-end, ON.RENDER_POST_HUD)
 
 -- Win state
 set_callback(function(ctx)
