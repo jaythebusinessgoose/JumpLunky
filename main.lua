@@ -34,138 +34,23 @@ local idols_collected = {}
 local hardcore_enabled = false
 local hardcore_previously_enabled = false
 
--- Stats for games played in the default difficulty.
-local normal_stats = {
-	best_time = 0,
-	best_time_idol_count = 0,
-	best_time_death_count = 0,
-	least_deaths_completion = nil,
-	least_deaths_completion_time = 0,
-	max_idol_completions = 0,
-	max_idol_best_time = 0,
-	deathless_completions = 0,
-	best_level = nil,
-	completions = 0,
-}
+local create_stats = require('stats')
+local stats = create_stats()
+local hardcore_stats = create_stats()
+local legacy_stats = create_stats(true)
+local legacy_hardcore_stats = create_stats(true)
 
--- Stats for games played in the easy difficulty.
-local easy_stats = {
-	best_time = 0,
-	best_time_death_count = 0,
-	least_deaths_completion = nil,
-	least_deaths_completion_time = 0,
-	deathless_completions = 0,
-	best_level = nil,
-	completions = 0,
-}
-
--- Stats for games played in the hard difficulty.
-local hard_stats = {
-	best_time = 0,
-	best_time_idol_count = 0,
-	best_time_death_count = 0,
-	least_deaths_completion = nil,
-	least_deaths_completion_time = 0,
-	max_idol_completions = 0,
-	max_idol_best_time = 0,
-	deathless_completions = 0,
-	best_level = nil,
-	completions = 0,
-}
-
-local legacy_normal_stats = nil
-local legacy_easy_stats = nil
-local legacy_hard_stats = nil
-
--- Stats for games played at the input difficulty.
-local function stats_for_difficulty(difficulty)
-	if difficulty == DIFFICULTY.HARD then
-		return hard_stats
-	elseif difficulty == DIFFICULTY.EASY then
-		return easy_stats
-	end
-	return normal_stats
+function stats.current_stats()
+	return stats.stats_for_difficulty(current_difficulty)
 end
-
--- Stats for games played in the current difficulty.
-local function current_stats()
-	return stats_for_difficulty(current_difficulty)
+function legacy_stats.current_stats()
+	return legacy_stats.stats_for_difficulty(current_difficulty)
 end
-
--- Stats for games played at the input difficulty.
-local function legacy_stats_for_difficulty(difficulty)
-	if difficulty == DIFFICULTY.HARD then
-		return legacy_hard_stats
-	elseif difficulty == DIFFICULTY.EASY then
-		return legacy_easy_stats
-	end
-	return legacy_normal_stats
+function hardcore_stats.current_stats()
+	return hardcore_stats.stats_for_difficulty(current_difficulty)
 end
-
--- Stats for games played in the current difficulty.
-local function current_legacy_stats()
-	return legacy_stats_for_difficulty(current_difficulty)
-end
-
--- Stats for games played in the default difficulty in hardcore mode.
-local hardcore_stats = {
-	best_time = 0,
-	best_level = nil,
-	completions = 0,
-	best_time_idol_count = 0,
-	max_idol_completions = 0,
-	max_idol_best_time = 0,
-}
-
--- Stats for games played in the easy difficulty in hardcore mode.
-local hardcore_stats_easy = {
-	best_time = 0,
-	best_level = nil,
-	completions = 0,
-}
-
--- Stats for games played in the hard difficulty in hardcore mode.
-local hardcore_stats_hard = {
-	best_time = 0,
-	best_level = nil,
-	completions = 0,
-	best_time_idol_count = 0,
-	max_idol_completions = 0,
-	max_idol_best_time = 0,
-}
-
-local legacy_hardcore_stats = nil
-local legacy_hardcore_stats_easy = nil
-local legacy_hardcore_stats_hard = nil
-
--- Stats for games played at the input difficulty in hardcore mode.
-local function hardcore_stats_for_difficulty(difficulty)
-	if difficulty == DIFFICULTY.HARD then
-		return hardcore_stats_hard
-	elseif difficulty == DIFFICULTY.EASY then
-		return hardcore_stats_easy
-	end
-	return hardcore_stats
-end
-
--- Stats for games played in the current difficulty in hardcore mode.
-local function current_hardcore_stats()
-	return hardcore_stats_for_difficulty(current_difficulty)
-end
-
--- Stats for games played at the input difficulty in hardcore mode.
-local function legacy_hardcore_stats_for_difficulty(difficulty)
-	if difficulty == DIFFICULTY.HARD then
-		return legacy_hardcore_stats_hard
-	elseif difficulty == DIFFICULTY.EASY then
-		return legacy_hardcore_stats_easy
-	end
-	return legacy_hardcore_stats
-end
-
--- Stats for games played in the current difficulty in hardcore mode.
-local function current_legacy_hardcore_stats()
-	return legacy_hardcore_stats_for_difficulty(current_difficulty)
+function legacy_hardcore_stats.current_stats()
+	return legacy_hardcore_stats.stats_for_difficulty(current_difficulty)
 end
 
 -- True if the player has seen ana dead in the sunken city level.
@@ -219,11 +104,11 @@ local show_legacy_stats = false
 local journal_page = DIFFICULTY.NORMAL
 
 -- Stats for the current completion.
-local completion_time = 0
-local completion_time_new_pb = false
-local completion_deaths = 0
-local completion_deaths_new_pb = false
-local completion_idols = 0
+completion_time = 0
+completion_time_new_pb = false
+completion_deaths = 0
+completion_deaths_new_pb = false
+completion_idols = 0
 
 -- Whether in a game and not in the menus -- including in the base camp.
 local has_seen_base_camp = false
@@ -359,7 +244,12 @@ set_pre_tile_code_callback(function(x, y, layer)
 	stats_sign_entity.flags = clr_flag(stats_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
 	stats_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 10, y, layer)
 	
-	if legacy_normal_stats and legacy_easy_stats and legacy_hard_stats and legacy_hardcore_stats and legacy_hardcore_stats_easy and legacy_hardcore_stats_hard then
+	if legacy_stats.normal and
+			legacy_stats.easy and
+			legacy_stats.hard and
+			legacy_hardcore_stats.normal and
+			legacy_hardcore_stats.easy and
+			legacy_hardcore_stats.hard then
 		legacy_stats_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 11, y, layer, 0, 0)
 		local legacy_stats_sign_entity = get_entity(legacy_stats_sign)
 		-- This stops the sign from displaying its default toast text when pressing the door button.
@@ -820,15 +710,15 @@ end)
 level_sequence.set_on_completed_level(function(completed_level, next_level)
 	if not next_level then return end
 	-- Update stats for the current difficulty mode.
-	local stats = current_stats()
-	local stats_hardcore = current_hardcore_stats()
-	local best_level_index = level_sequence.index_of_level(stats.best_level)
+	local current_stats = stats.current_stats()
+	local stats_hardcore = hardcore_stats.current_stats()
+	local best_level_index = level_sequence.index_of_level(current_stats.best_level)
 	local hardcore_best_level_index = level_sequence.index_of_level(stats_hardcore.best_level)
 	local current_level_index = level_sequence.index_of_level(next_level)
 	-- Update the PB if the new level has not been reached yet.
 	if (not best_level_index or current_level_index > best_level_index) and
 			not level_sequence.took_shortcut() then
-		stats.best_level = next_level
+				current_stats.best_level = next_level
 	end
 	if hardcore_enabled and
 			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
@@ -838,11 +728,12 @@ level_sequence.set_on_completed_level(function(completed_level, next_level)
 end)
 
 level_sequence.set_on_win(function(attempts, total_time)
-	local stats = current_stats()
-	local stats_hardcore = current_hardcore_stats()
+	print(f'attempts: {attempts} total_time: {total_time}')
+	local current_stats = stats.current_stats()
+	local stats_hardcore = hardcore_stats.current_stats()
 	if not level_sequence.took_shortcut() then
 		win = true
-		stats.completions = stats.completions + 1
+		current_stats.completions = current_stats.completions + 1
 		completion_time = total_time
 		completion_deaths = attempts - 1
 		completion_idols = idols
@@ -860,13 +751,15 @@ level_sequence.set_on_win(function(attempts, total_time)
 			saved_run.saved_run_time = nil
 		end
 				
-		if not stats.best_time or stats.best_time == 0 or completion_time < stats.best_time then
-			stats.best_time = completion_time
+		if not current_stats.best_time or
+				current_stats.best_time == 0 or
+				completion_time < current_stats.best_time then
+					current_stats.best_time = completion_time
 			completion_time_new_pb = true
 			if current_difficulty ~= DIFFICULTY.EASY then
-				stats.best_time_idol_count = idols
+				current_stats.best_time_idol_count = idols
 			end
-			stats.best_time_death_count = completion_deaths
+			current_stats.best_time_death_count = completion_deaths
 		else
 			completion_time_new_pb = false
 		end
@@ -883,9 +776,11 @@ level_sequence.set_on_win(function(attempts, total_time)
 		end
 		
 		if idols == #level_sequence.levels() and current_difficulty ~= DIFFICULTY.EASY then
-			stats.max_idol_completions = stats.max_idol_completions + 1
-			if not stats.max_idol_best_time or stats.max_idol_best_time == 0 or completion_time < stats.max_idol_best_time then
-				stats.max_idol_best_time = completion_time
+			current_stats.max_idol_completions = current_stats.max_idol_completions + 1
+			if not current_stats.max_idol_best_time or
+					current_stats.max_idol_best_time == 0 or
+					completion_time < current_stats.max_idol_best_time then
+				current_stats.max_idol_best_time = completion_time
 			end
 			if hardcore_enabled then
 				stats_hardcore.max_idol_completions = stats_hardcore.max_idol_completions + 1
@@ -895,14 +790,18 @@ level_sequence.set_on_win(function(attempts, total_time)
 			end
 		end
 		
-		if not stats.least_deaths_completion or completion_deaths < stats.least_deaths_completion or (completion_deaths == stats.least_deaths_completion and completion_time < stats.least_deaths_completion_time) then
-			if not stats.least_deaths_completion or completion_deaths < stats.least_deaths_completion then
+		if not current_stats.least_deaths_completion or
+				completion_deaths < current_stats.least_deaths_completion or
+				(completion_deaths == current_stats.least_deaths_completion and
+				 completion_time < current_stats.least_deaths_completion_time) then
+			if not current_stats.least_deaths_completion or
+					completion_deaths < current_stats.least_deaths_completion then
 				completion_deaths_new_pb = true
 			end
-			stats.least_deaths_completion = completion_deaths
-			stats.least_deaths_completion_time = completion_time
+			current_stats.least_deaths_completion = completion_deaths
+			current_stats.least_deaths_completion_time = completion_time
 			if attempts == 1 then
-				stats.deathless_completions = stats.deathless_completions + 1
+				current_stats.deathless_completions = current_stats.deathless_completions + 1
 			end
 		else
 			completion_deaths_new_pb = false
@@ -931,15 +830,15 @@ end, ON.GAMEFRAME)
 set_callback(function ()
 	-- Update the PB if the new level has not been reached yet. This is only really for the first time entering Dwelling,
 	-- since other times ON.RESET will not have an increased level from the best_level.
-	local stats = current_stats()
-	local stats_hardcore = current_hardcore_stats()
-	local best_level_index = level_sequence.index_of_level(stats.best_level)
+	local current_stats = stats.current_stats()
+	local stats_hardcore = hardcore_stats.current_stats()
+	local best_level_index = level_sequence.index_of_level(current_stats.best_level)
 	local hardcore_best_level_index = level_sequence.index_of_level(stats_hardcore.best_level)
 	local current_level = level_sequence.get_run_state().current_level
 	local current_level_index = level_sequence.index_of_level(current_level)
 	if (not best_level_index or current_level_index > best_level_index) and
 			not level_sequence.took_shortcut() then
-		stats.best_level = current_level
+		current_stats.best_level = current_level
 	end
 	if hardcore_enabled and
 			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
@@ -1169,9 +1068,15 @@ set_callback(function(ctx)
 	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_PAGEFLIP_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
 	ctx:draw_screen_texture(banner_texture, 0, 0, -bannerw/2, bannery + bannerh/2, bannerw/2, bannery - bannerh/2, color)
 		
-	local stats = show_legacy_stats and legacy_stats_for_difficulty(journal_page) or stats_for_difficulty(journal_page)
-	local hardcore_stats = show_legacy_stats and legacy_hardcore_stats_for_difficulty(journal_page) or hardcore_stats_for_difficulty(journal_page)
-	
+	local current_stats =
+		show_legacy_stats and
+		legacy_stats.stats_for_difficulty(journal_page) or
+		stats.stats_for_difficulty(journal_page)
+	local current_hardcore_stats =
+		show_legacy_stats and
+		legacy_hardcore_stats.stats_for_difficulty(journal_page) or
+		hardcore_stats.stats_for_difficulty(journal_page)
+	-- print(inspect(current_stats))
 	local stat_texts = {}
 	local hardcore_stat_texts = {}
 	function add_stat(text)
@@ -1180,16 +1085,16 @@ set_callback(function(ctx)
 	function add_hardcore_stat(text)
 		hardcore_stat_texts[#hardcore_stat_texts+1] = text
 	end
-	if stats.completions > 0 then
-		add_stat(f'Completions: {stats.completions}')
+	if current_stats.completions > 0 then
+		add_stat(f'Completions: {current_stats.completions}')
 		local empty_stats = 0
-		if journal_page ~= DIFFICULTY.EASY and stats.max_idol_completions > 0 then
-			add_stat(f'All idol completions: {stats.max_idol_completions}')
+		if journal_page ~= DIFFICULTY.EASY and current_stats.max_idol_completions > 0 then
+			add_stat(f'All idol completions: {current_stats.max_idol_completions}')
 		else
 			empty_stats = empty_stats + 1
 		end
-		if stats.deathless_completions > 0 then
-			add_stat(f'Deathless completions: {stats.deathless_completions}')
+		if current_stats.deathless_completions > 0 then
+			add_stat(f'Deathless completions: {current_stats.deathless_completions}')
 		else
 			empty_stats = empty_stats + 1
 		end
@@ -1200,35 +1105,35 @@ set_callback(function(ctx)
 		add_stat("")
 		add_stat("PBs:")
 		local idol_text = ''
-		if journal_page ~= DIFFICULTY.EASY and stats.best_time_idol_count == 1 then
+		if journal_page ~= DIFFICULTY.EASY and current_stats.best_time_idol_count == 1 then
 			idol_text = '1 idol, '
-		elseif journal_page ~= DIFFICULTY.EASY and stats.best_time_idol_count > 0 then
-			idol_text = f'{stats.best_time_idol_count} idols, '
+		elseif journal_page ~= DIFFICULTY.EASY and current_stats.best_time_idol_count > 0 then
+			idol_text = f'{current_stats.best_time_idol_count} idols, '
 		end
 		local deaths_text = '1 death'
-		if stats.best_time_death_count > 1 then
-			deaths_text = f'{stats.best_time_death_count} deaths'
-		elseif stats.best_time_death_count == 0 then
+		if current_stats.best_time_death_count > 1 then
+			deaths_text = f'{current_stats.best_time_death_count} deaths'
+		elseif current_stats.best_time_death_count == 0 then
 			deaths_text = f'deathless'
 		end
-		add_stat(f'Best time: {format_time(stats.best_time)} ({idol_text}{deaths_text})')
-		if journal_page ~= DIFFICULTY.EASY and stats.max_idol_completions > 0 then
-			add_stat(f'All idols: {format_time(stats.max_idol_best_time)}')
+		add_stat(f'Best time: {format_time(current_stats.best_time)} ({idol_text}{deaths_text})')
+		if journal_page ~= DIFFICULTY.EASY and current_stats.max_idol_completions > 0 then
+			add_stat(f'All idols: {format_time(current_stats.max_idol_best_time)}')
 		end
-		if stats.deathless_completions > 0 then
-			add_stat(f'Deathless: {format_time(stats.least_deaths_completion_time)}')
+		if current_stats.deathless_completions > 0 then
+			add_stat(f'Deathless: {format_time(current_stats.least_deaths_completion_time)}')
 		else
-			add_stat(f'Least deaths: {stats.least_deaths_completion} ({format_time(stats.least_deaths_completion_time)})')
+			add_stat(f'Least deaths: {current_stats.least_deaths_completion} ({format_time(current_stats.least_deaths_completion_time)})')
 		end
-	elseif stats.best_level then
-		add_stat(f'PB: {stats.best_level.title}')
+	elseif current_stats.best_level then
+		add_stat(f'PB: {current_stats.best_level.title}')
 	else
 		add_stat("PB: N/A")
 	end
-	if hardcore_stats.completions > 0 then
-		add_hardcore_stat(f'Completions: {hardcore_stats.completions}')
-		if journal_page ~= DIFFICULTY.EASY and hardcore_stats.max_idol_completions > 0 then
-			add_hardcore_stat(f'All idol completions: {hardcore_stats.max_idol_completions}')
+	if current_hardcore_stats.completions > 0 then
+		add_hardcore_stat(f'Completions: {current_hardcore_stats.completions}')
+		if journal_page ~= DIFFICULTY.EASY and current_hardcore_stats.max_idol_completions > 0 then
+			add_hardcore_stat(f'All idol completions: {current_hardcore_stats.max_idol_completions}')
 		else
 			add_hardcore_stat("")
 		end
@@ -1237,17 +1142,17 @@ set_callback(function(ctx)
 		add_hardcore_stat("")
 		add_hardcore_stat("PBs:")
 		local idol_text = ''
-		if journal_page ~= DIFFICULTY.EASY and hardcore_stats.best_time_idol_count == 1 then
+		if journal_page ~= DIFFICULTY.EASY and current_hardcore_stats.best_time_idol_count == 1 then
 			idol_text = ' (1 idol)'
-		elseif journal_page ~= DIFFICULTY.EASY and hardcore_stats.best_time_idol_count > 0 then
-			idol_text = f' ({hardcore_stats.best_time_idol_count} idols)'
+		elseif journal_page ~= DIFFICULTY.EASY and current_hardcore_stats.best_time_idol_count > 0 then
+			idol_text = f' ({current_hardcore_stats.best_time_idol_count} idols)'
 		end
-		add_hardcore_stat(f'Best time: {format_time(hardcore_stats.best_time)}{idol_text}')
-		if journal_page ~= DIFFICULTY.EASY and hardcore_stats.max_idol_completions > 0 then
-			add_hardcore_stat(f'All idols: {format_time(hardcore_stats.max_idol_best_time)}')
+		add_hardcore_stat(f'Best time: {format_time(current_hardcore_stats.best_time)}{idol_text}')
+		if journal_page ~= DIFFICULTY.EASY and current_hardcore_stats.max_idol_completions > 0 then
+			add_hardcore_stat(f'All idols: {format_time(current_hardcore_stats.max_idol_best_time)}')
 		end
-	elseif hardcore_stats.best_level then
-		add_hardcore_stat(f'PB: {hardcore_stats.best_level.title}')
+	elseif current_hardcore_stats.best_level then
+		add_hardcore_stat(f'PB: {current_hardcore_stats.best_level.title}')
 	else
 		add_hardcore_stat("PB: N/A")
 	end
@@ -1310,8 +1215,8 @@ set_callback(function(ctx)
 	ctx:draw_screen_texture(TEXTURE.DATA_TEXTURES_JOURNAL_PAGEFLIP_0, 0, 0, -w/2, h/2, w/2, -h/2, color)
 	ctx:draw_screen_texture(banner_texture, 0, 0, -bannerw/2, bannery + bannerh/2, bannerw/2, bannery - bannerh/2, color)
 		
-	local stats = current_stats()
-	local hardcore_stats = current_hardcore_stats()
+	local current_stats = stats.current_stats()
+	local current_hardcore_stats = hardcore_stats.current_stats()
 	
 	local stat_texts = {}
 	local pb_stat_texts = {}
@@ -1365,18 +1270,24 @@ set_callback(function(ctx)
 	add_stat("")
 	
 	empty_stats = 0
-	add_pb_stat(f'Completions: {stats.completions}')
+	add_pb_stat(f'Completions: {current_stats.completions}')
 	if hardcore_enabled then
-		add_pb_stat(f'Hardcore completions: {stats_hardcore.completions}')
-	elseif stats.deathless_completions and stats.deathless_completions > 0 then
-		add_pb_stat(f'Deathless completions: {stats.deathless_completions}')
+		add_pb_stat(f'Hardcore completions: {current_hardcore_stats.completions}')
+	elseif current_stats.deathless_completions and current_stats.deathless_completions > 0 then
+		add_pb_stat(f'Deathless completions: {current_stats.deathless_completions}')
 	else
 		empty_stats = empty_stats + 1
 	end
-	if current_difficulty ~= DIFFICULTY.EASY and hardcore_enabled and stats_hardcore.max_idol_completions and stats_hardcore.max_idol_completions > 0 then
-		add_pb_stat(f'All idol hardcore completions: {stats_hardcore.max_idol_completions}')
-	elseif current_difficulty ~= DIFFICULTY.EASY and not hardcore_enabled and stats.max_idol_completions and stats.max_idol_completions > 0 then
-		add_pb_stat(f'All idol completions: {stats.max_idol_completions}')
+	if current_difficulty ~= DIFFICULTY.EASY and
+			hardcore_enabled and
+			current_hardcore_stats.max_idol_completions and
+			current_hardcore_stats.max_idol_completions > 0 then
+		add_pb_stat(f'All idol hardcore completions: {current_hardcore_stats.max_idol_completions}')
+	elseif current_difficulty ~= DIFFICULTY.EASY and
+			not hardcore_enabled and
+			current_stats.max_idol_completions and
+			current_stats.max_idol_completions > 0 then
+		add_pb_stat(f'All idol completions: {current_stats.max_idol_completions}')
 	else
 		empty_stats = empty_stats + 1
 	end
@@ -1398,27 +1309,34 @@ set_callback(function(ctx)
 	end
 	empty_stats = 0
 	if hardcore_enabled then
-		add_pb_stat(f'Fastest time: {format_time(stats.best_time)}{time_pb_text}')
-		add_pb_stat(f'Fastest hardcore time: {format_time(stats_hardcore.best_time)}{time_pb_text}')
+		add_pb_stat(f'Fastest time: {format_time(current_stats.best_time)}{time_pb_text}')
+		add_pb_stat(f'Fastest hardcore time: {format_time(current_hardcore_stats.best_time)}{time_pb_text}')
 		
-		if current_difficulty ~= DIFFICULTY.EASY and stats_hardcore.max_idol_best_time and stats_hardcore.max_idol_best_time > 0 then
-			add_pb_stat(f'Fastest hardcore all idols: {format_time(stats_hardcore.max_idol_best_time)}')
+		if current_difficulty ~= DIFFICULTY.EASY and
+		current_hardcore_stats.max_idol_best_time and
+				current_hardcore_stats.max_idol_best_time > 0 then
+			add_pb_stat(f'Fastest hardcore all idols: {format_time(current_hardcore_stats.max_idol_best_time)}')
 		else
 			empty_stats = empty_stats + 1
 		end
 		empty_stats = empty_stats + 1
 	else
-		add_pb_stat(f'Fastest time: {format_time(stats.best_time)}{time_pb_text}')
-		add_pb_stat(f'Least deaths: {stats.least_deaths_completion}{deaths_pb_text}')
+		add_pb_stat(f'Fastest time: {format_time(current_stats.best_time)}{time_pb_text}')
+		add_pb_stat(f'Least deaths: {current_stats.least_deaths_completion}{deaths_pb_text}')
 		
-		if stats.deathless_completions and stats.deathless_completions > 0 and stats.least_deaths_completion_time and stats.least_deaths_completion_time > 0 then
-			add_pb_stat(f'Fastest deathless: {format_time(stats.least_deaths_completion_time)}')
+		if current_stats.deathless_completions and
+				current_stats.deathless_completions > 0 and
+				current_stats.least_deaths_completion_time and
+				current_stats.least_deaths_completion_time > 0 then
+			add_pb_stat(f'Fastest deathless: {format_time(current_stats.least_deaths_completion_time)}')
 		else
 			empty_stats = empty_stats + 1
 		end
 		
-		if current_difficulty ~= DIFFICULTY.EASY and stats.max_idol_best_time and stats.max_idol_best_time > 0 then
-			add_pb_stat(f'Fastest all idols: {format_time(stats.max_idol_best_time)}')
+		if current_difficulty ~= DIFFICULTY.EASY and
+				current_stats.max_idol_best_time and
+				stacurrent_statsts.max_idol_best_time > 0 then
+			add_pb_stat(f'Fastest all idols: {format_time(current_stats.max_idol_best_time)}')
 		else
 			empty_stats = empty_stats + 1
 		end
@@ -1467,8 +1385,8 @@ set_callback(function (ctx)
 	
 	-- Display stats, or a win screen, for the current difficulty mode and current saved run.
 	local saved_run = current_saved_run()
-	local stats = current_stats()
-	local stats_hardcore = current_hardcore_stats()
+	local current_stats = stats.current_stats()
+	local stats_hardcore = hardcore_stats.current_stats()
 	
     if win then
 		-- Do not render, showing stats in RENDER_POST_HUD
@@ -1511,18 +1429,18 @@ set_callback(function (ctx)
 				texts[#texts+1] = "PB: N/A"
 			end
 		else
-			if stats.completions and stats.completions > 0 then
+			if current_stats.completions and current_stats.completions > 0 then
 				idol_text = ""
 				if current_difficulty ~= DIFFICULTY.EASY then
-					if stats.best_time_idol_count == 1 then
+					if current_stats.best_time_idol_count == 1 then
 						idol_text = f' (1 idol)'
-					elseif stats.best_time_idol_count > 1 then
-						idol_text = f' ({stats.best_time_idol_count} idols)'
+					elseif current_stats.best_time_idol_count > 1 then
+						idol_text = f' ({current_stats.best_time_idol_count} idols)'
 					end
 				end
-				texts[#texts+1] = f'Wins: {stats.completions}  PB: {format_time(stats.best_time)}{idol_text}'
-			elseif stats.best_level then
-				texts[#texts+1] = f'PB: {stats.best_level.title}'
+				texts[#texts+1] = f'Wins: {current_stats.completions}  PB: {format_time(current_stats.best_time)}{idol_text}'
+			elseif current_stats.best_level then
+				texts[#texts+1] = f'PB: {current_stats.best_level.title}'
 			else
 				texts[#texts+1] = "PB: N/A"
 			end
@@ -1627,22 +1545,22 @@ set_callback(function (ctx)
 				return new_stats
 			end
 			if load_data.stats then
-				legacy_normal_stats = legacy_stat_convert(load_data.stats)
+				legacy_stats.normal = legacy_stat_convert(load_data.stats)
 			end
 			if load_data.easy_stats then
-				legacy_easy_stats = legacy_stat_convert(load_data.easy_stats)
+				legacy_stats.easy = legacy_stat_convert(load_data.easy_stats)
 			end
 			if load_data.hard_stats then
-				legacy_hard_stats = legacy_stat_convert(load_data.hard_stats)
+				legacy_stats.hard = legacy_stat_convert(load_data.hard_stats)
 			end
 			if load_data.hardcore_stats then
-				legacy_hardcore_stats = legacy_stat_convert(load_data.hardcore_stats)
+				legacy_hardcore_stats.normal = legacy_stat_convert(load_data.hardcore_stats)
 			end
 			if load_data.hardcore_stats_easy then
-				legacy_hardcore_stats_easy = legacy_stat_convert(load_data.hardcore_stats_easy)
+				legacy_hardcore_stats.easy = legacy_stat_convert(load_data.hardcore_stats_easy)
 			end
 			if load_data.hardcore_stats_hard then
-				legacy_hardcore_stats_hard = legacy_stat_convert(load_data.hardcore_stats_hard)
+				legacy_hardcore_stats.hard = legacy_stat_convert(load_data.hardcore_stats_hard)
 			end
 		else
 			local function stat_convert(stats)
@@ -1654,43 +1572,43 @@ set_callback(function (ctx)
 				return new_stats
 			end
 			if load_data.stats then
-				normal_stats = stat_convert(load_data.stats)
+				stats.normal = stat_convert(load_data.stats)
 			end
 			if load_data.easy_stats then
-				easy_stats = stat_convert(load_data.easy_stats)
+				stats.easy = stat_convert(load_data.easy_stats)
 			end
 			if load_data.hard_stats then
-				hard_stats = stat_convert(load_data.hard_stats)
+				stats.hard = stat_convert(load_data.hard_stats)
 			end
 			if load_data.legacy_stats then
-				legacy_normal_stats = stat_convert(load_data.legacy_stats)
+				legacy_stats.normal = stat_convert(load_data.legacy_stats)
 			end
 			if load_data.legacy_easy_stats then
-				legacy_easy_stats = stat_convert(load_data.legacy_easy_stats)
+				legacy_stats.easy = stat_convert(load_data.legacy_easy_stats)
 			end
 			if load_data.legacy_hard_stats then
-				legacy_hard_stats = stat_convert(load_data.legacy_hard_stats)
+				legacy_stats.hard = stat_convert(load_data.legacy_hard_stats)
 			end
 			
 			
 			if load_data.hardcore_stats then
-				hardcore_stats = stat_convert(load_data.hardcore_stats)
+				hardcore_stats.normal = stat_convert(load_data.hardcore_stats)
 			end
 			if load_data.hardcore_stats_easy then
-				hardcore_stats_easy = stat_convert(load_data.hardcore_stats_easy)
+				hardcore_stats.easy = stat_convert(load_data.hardcore_stats_easy)
 			end
 			if load_data.hardcore_stats_hard then
-				hardcore_stats_hard = stat_convert(load_data.hardcore_stats_hard)
+				hardcore_stats.hard = stat_convert(load_data.hardcore_stats_hard)
 			end
 			
 			if load_data.legacy_hardcore_stats then
-				legacy_hardcore_stats = stat_convert(load_data.legacy_hardcore_stats)
+				legacy_hardcore_stats.normal = stat_convert(load_data.legacy_hardcore_stats)
 			end
 			if load_data.legacy_hardcore_stats_easy then
-				legacy_hardcore_stats_easy = stat_convert(load_data.legacy_hardcore_stats_easy)
+				legacy_hardcore_stats.easy = stat_convert(load_data.legacy_hardcore_stats_easy)
 			end
 			if load_data.legacy_hardcore_stats_hard then
-				legacy_hardcore_stats_hard = stat_convert(load_data.legacy_hardcore_stats_hard)
+				legacy_hardcore_stats.hard = stat_convert(load_data.legacy_hardcore_stats_hard)
 			end
 		end
 
@@ -1717,6 +1635,7 @@ set_callback(function (ctx)
 		end
 		if easy_saved_run_data then
 			load_saved_run_data(easy_saved_run, easy_saved_run_data)
+			print(inspect(easy_saved_run))
 		end
 		if hard_saved_run_data then
 			load_saved_run_data(hard_saved_run, hard_saved_run_data)
@@ -1727,7 +1646,7 @@ end, ON.LOAD)
 
 function force_save(ctx)
 	function saved_run_datar(saved_run)
-		if not saved_run then return nil end
+		if not saved_run or not saved_run.has_saved_run then return nil end
 		local saved_run_data = {
 			has_saved_run = saved_run.has_saved_run,
 			level = level_sequence.index_of_level(saved_run.saved_run_level) - 1,
@@ -1742,6 +1661,7 @@ function force_save(ctx)
 	local easy_saved_run_data = saved_run_datar(easy_saved_run)
 	local hard_saved_run_data = saved_run_datar(hard_saved_run)
 	local function convert_stats(stats)
+		if not stats then return nil end
 		local new_stats = {}
 		for k,v in pairs(stats) do new_stats[k] = v end
 		local best_level = level_sequence.index_of_level(stats.best_level)
@@ -1759,22 +1679,22 @@ function force_save(ctx)
 		saved_run_data = normal_saved_run_data,
 		easy_saved_run = easy_saved_run_data,
 		hard_saved_run = hard_saved_run_data,
-		stats = convert_stats(normal_stats),
-		easy_stats = convert_stats(easy_stats),
-		hard_stats = convert_stats(hard_stats),
-		legacy_stats = convert_stats(legacy_normal_stats),
-		legacy_easy_stats = convert_stats(legacy_easy_stats),
-		legacy_hard_stats = convert_stats(legacy_hard_stats),
+		stats = convert_stats(stats.normal),
+		easy_stats = convert_stats(stats.easy),
+		hard_stats = convert_stats(stats.hard),
+		legacy_stats = convert_stats(legacy_stats.normal),
+		legacy_easy_stats = convert_stats(legacy_stats.easy),
+		legacy_hard_stats = convert_stats(legacy_stats.hard),
 		has_seen_ana_dead = has_seen_ana_dead,
 		hardcore_enabled = hardcore_enabled,
 		difficulty = current_difficulty,
 		hpe = hardcore_previously_enabled,
-		hardcore_stats = convert_stats(hardcore_stats),
-		hardcore_stats_easy = convert_stats(hardcore_stats_easy),
-		hardcore_stats_hard = convert_stats(hardcore_stats_hard),
-		legacy_hardcore_stats = convert_stats(legacy_hardcore_stats),
-		legacy_hardcore_stats_easy = convert_stats(legacy_hardcore_stats_easy),
-		legacy_hardcore_stats_hard = convert_stats(legacy_hardcore_stats_hard),
+		hardcore_stats = convert_stats(hardcore_stats.normal),
+		hardcore_stats_easy = convert_stats(hardcore_stats.easy),
+		hardcore_stats_hard = convert_stats(hardcore_stats.hard),
+		legacy_hardcore_stats = convert_stats(legacy_hardcore_stats.normal),
+		legacy_hardcore_stats_easy = convert_stats(legacy_hardcore_stats.easy),
+		legacy_hardcore_stats_hard = convert_stats(legacy_hardcore_stats.hard),
     }
 
     ctx:save(json.encode(save_data))
