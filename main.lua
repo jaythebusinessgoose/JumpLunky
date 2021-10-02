@@ -115,9 +115,9 @@ local function set_difficulty(difficulty)
 	update_continue_door_enabledness()
 end
 
----------------
----- SOUNDS ---
----------------
+--------------------------------------
+---- SOUNDS
+--------------------------------------
 
 -- Make spring traps quieter.
 set_vanilla_sound_callback(VANILLA_SOUND.TRAPS_SPRING_TRIGGER, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function(playing_sound)
@@ -129,13 +129,13 @@ set_vanilla_sound_callback(VANILLA_SOUND.UI_NPC_VOCAL, VANILLA_SOUND_CALLBACK_TY
 	playing_sound:set_volume(0)
 end)
 
-----------------
----- /SOUNDS ---
-----------------
+--------------------------------------
+---- /SOUNDS
+--------------------------------------
 
---------------
----- CAMP ----
---------------
+--------------------------------------
+---- CAMP
+--------------------------------------
 
 local continue_door
 
@@ -483,9 +483,9 @@ set_post_entity_spawn(function (entity)
 	end
 end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 
----------------
----- /CAMP ----
----------------
+--------------------------------------
+---- /CAMP
+--------------------------------------
 
 --------------------------------------
 ---- LEVEL SEQUENCE
@@ -690,9 +690,9 @@ end)
 ---- /LEVEL SEQUENCE
 --------------------------------------
 
---------------
----- IDOL ----
---------------
+--------------------------------------
+---- IDOL
+--------------------------------------
 
 set_post_entity_spawn(function(entity)
 	-- Set the price to 0 so the player doesn't get gold for returning the idol.
@@ -727,23 +727,23 @@ set_vanilla_sound_callback(VANILLA_SOUND.UI_DEPOSIT, VANILLA_SOUND_CALLBACK_TYPE
 	update_hud_run_state()
 end)
 
----------------
----- /IDOL ----
----------------
+--------------------------------------
+---- /IDOL
+--------------------------------------
 
-----------------------------
----- DO NOT SPAWN GHOST ----
-----------------------------
+--------------------------------------
+---- DO NOT SPAWN GHOST 
+--------------------------------------
 
 set_ghost_spawn_times(-1, -1)
 
------------------------------
----- /DO NOT SPAWN GHOST ----
------------------------------
+--------------------------------------
+---- /DO NOT SPAWN GHOST 
+--------------------------------------
 
---------------------
----- SAVE STATE ----
---------------------
+--------------------------------------
+---- SAVE STATE
+--------------------------------------
 
 -- Manage saving data and keeping the time in sync during level transitions and resets.
 
@@ -798,13 +798,13 @@ set_callback(function()
 	end
 end, ON.FRAME)
 
----------------------
----- /SAVE STATE ----
----------------------
+--------------------------------------
+---- /SAVE STATE
+--------------------------------------
 
---------------------------
----- STATE MANAGEMENT ----
---------------------------
+--------------------------------------
+---- STATE MANAGEMENT
+--------------------------------------
 
 -- Leaving these variables set between resets can lead to undefined behavior due to the high likelyhood of entities being reused.
 function clear_variables()
@@ -820,13 +820,13 @@ set_callback(function()
 	clear_variables()
 end, ON.PRE_LOAD_LEVEL_FILES)
 
----------------------------
----- /STATE MANAGEMENT ----
----------------------------
+--------------------------------------
+---- /STATE MANAGEMENT
+--------------------------------------
 
--------------------
----- SAVE DATA ----
--------------------
+--------------------------------------
+---- SAVE DATA
+--------------------------------------
 
 set_callback(function (ctx)
 	game_state = save_state.load(game_state, level_sequence, ctx)
@@ -843,6 +843,6 @@ set_callback(function (ctx)
 	force_save(ctx)
 end, ON.SAVE)
 
---------------------
----- /SAVE DATA ----
---------------------
+--------------------------------------
+---- /SAVE DATA
+--------------------------------------
