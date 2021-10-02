@@ -1,4 +1,4 @@
-require('difficulty')
+local DIFFICULTY = require('difficulty')
 
 define_tile_code("rope_crate")
 

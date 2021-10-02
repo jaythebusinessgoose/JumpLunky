@@ -1,6 +1,6 @@
 local idols = require('idols')
 local sound = require('play_sound')
-require('difficulty')
+local DIFFICULTY = require('difficulty')
 
 define_tile_code("firefrog")
 define_tile_code("laser_switch")

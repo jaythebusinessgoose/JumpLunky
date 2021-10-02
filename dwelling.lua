@@ -1,6 +1,6 @@
 local sound = require('play_sound')
 local clear_embeds = require('clear_embeds')
-require('difficulty')
+local DIFFICULTY = require('difficulty')
 
 define_tile_code("bat_generator")
 define_tile_code("bat_switch")

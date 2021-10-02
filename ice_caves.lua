@@ -1,5 +1,5 @@
 local clear_embeds = require('clear_embeds')
-require('difficulty')
+local DIFFICULTY = require('difficulty')
 
 define_tile_code("ice_turkey")
 define_tile_code("ice_yeti")

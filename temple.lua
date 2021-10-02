@@ -1,5 +1,6 @@
+local DIFFICULTY = require('difficulty')
+
 define_tile_code("catmummy")
-require('difficulty')
 
 local temple = {
     identifier = "temple",

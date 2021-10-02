@@ -10,7 +10,7 @@ local button_prompts = require("ButtonPrompts/button_prompts")
 local idols = require('idols.lua')
 local sound = require('play_sound')
 local clear_embeds = require('clear_embeds')
-require('difficulty.lua')
+local DIFFICULTY = require('difficulty')
 
 local dwelling = require("dwelling")
 local volcana = require("volcana")
