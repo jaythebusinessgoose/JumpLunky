@@ -2,6 +2,7 @@ local DIFFICULTY = require('difficulty')
 local format_time = require('format_time')
 local sound = require('play_sound')
 
+-- Module for handling showing stats in a journal UI.
 local journal = {}
 
 local journal_state = {
@@ -10,6 +11,7 @@ local journal_state = {
     button_handling = nil,
 
     show_stats = false,
+    show_legacy_stats = false,
     stats = nil,
     hardcore_stats = nil,
     difficulty = DIFFICULTY.NORMAL,
@@ -26,18 +28,33 @@ local journal_callbacks = {
     on_journal_closed = nil,
 }
 
+-- Sets a callback to be called when the journal is closed.
+--
+-- on_journal_closed: Callback called when journal is closed.
 function journal.set_on_journal_closed(on_journal_closed)
     journal_callbacks.on_journal_closed = on_journal_closed
 end
 
+-- Whether or not the journal is currently showing stats.
+--
+-- Return: True if the journal is visible.
 function journal.showing_stats()
     return journal_state.show_stats
 end
 
-function journal.show(stats, hardcore_stats, default_difficulty, open_button)
+-- Show the journal.
+--
+-- stats: Stats to show in the journal.
+-- hardcore_stats: Stats for hardcore mode to show in the journal.
+-- default_difficulty: Difficulty page to open the journal to.
+-- open_button: The button that was pressed to open the journal. This will be used just to make
+--              sure the button is released before reading it to close the journal.
+-- showing_legacy_stats: Whether the stats that are being shown are legacy stats.
+function journal.show(stats, hardcore_stats, default_difficulty, open_button, showing_legacy_stats)
     if journal_state.show_stats then return end
 
     journal_state.show_stats = true
+    journal_state.show_legacy_stats = showing_legacy_stats
     journal_state.stats = stats
     journal_state.hardcore_stats = hardcore_stats
     journal_state.difficulty = default_difficulty
@@ -54,10 +71,12 @@ function journal.show(stats, hardcore_stats, default_difficulty, open_button)
     end
 end
 
+-- Force the journal to hide.
 function journal.hide()
     if not journal_state.show_stats then return end
 
     journal_state.show_stats = false
+    journal_state.show_legacy_stats = false
     journal_state.stats = nil
     journal_state.hardcore_stats = nil
     journal_state.difficulty = DIFFICULTY.NORMAL
@@ -72,6 +91,8 @@ function journal.hide()
     sound.play_sound(VANILLA_SOUND.UI_JOURNAL_OFF)
 end
 
+-- Activate journal callbacks, allowing the script to read button inputs to flip pages and
+-- close the journal.
 function journal.activate()
     if journal_state.active then return end
     journal_state.active = true
@@ -278,7 +299,7 @@ function journal.activate()
         local stats_title_color = rgba(255,255,255,255)
         ctx:draw_text(stats_title, 0, .71, titlesize, titlesize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
         ctx:draw_text("Hardcore", -statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.RIGHT, VANILLA_FONT_STYLE.ITALIC)
-        if show_legacy_stats then
+        if journal_state.show_legacy_stats then
             ctx:draw_text("Legacy", statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
         end
         
@@ -293,11 +314,13 @@ function journal.activate()
     end, ON.RENDER_POST_HUD)
 end
 
+-- Deactivate the journal.
 function journal.deactivate()
     if not journal_state.active then return end
     journal_state.active = false
 
     journal_state.show_stats = false
+    journal_state.show_legacy_stats = false
     journal_state.stats = nil
     journal_state.hardcore_stats = nil
     journal_state.difficulty = DIFFICULTY.NORMAL
