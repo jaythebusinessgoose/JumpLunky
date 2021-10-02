@@ -552,19 +552,6 @@ set_callback(function()
 	end
 end, ON.GAMEFRAME)
 
-level_sequence.set_on_prepare_initial_level(function(level, continuing)
-	local saved_run = current_saved_run()
-	if continuing then
-		continuing_run = true
-		idols = saved_run.saved_run_idol_count
-		run_idols_collected = saved_run.saved_run_idols_collected
-	else
-		continuing_run = false
-		idols = 0
-		run_idols_collected = {}
-	end
-end)
-
 -- Sorry, Ana...
 set_post_entity_spawn(function (entity)
 	if state.theme == THEME.BASE_CAMP and has_seen_base_camp then
@@ -578,9 +565,9 @@ end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 ---- /CAMP ----
 ---------------
 
-------------------------
----- LEVEL SEQUENCE ----
-------------------------
+--------------------------------------
+---- LEVEL SEQUENCE
+--------------------------------------
 
 level_sequence.set_on_level_will_load(function(level)
 	level.set_difficulty(current_difficulty)
@@ -745,9 +732,22 @@ level_sequence.set_on_reset_run(function()
 	idols = 0
 end)
 
--------------------------
----- /LEVEL SEQUENCE ----
--------------------------
+level_sequence.set_on_prepare_initial_level(function(level, continuing)
+	local saved_run = current_saved_run()
+	if continuing then
+		continuing_run = true
+		idols = saved_run.saved_run_idol_count
+		run_idols_collected = saved_run.saved_run_idols_collected
+	else
+		continuing_run = false
+		idols = 0
+		run_idols_collected = {}
+	end
+end)
+
+--------------------------------------
+---- /LEVEL SEQUENCE
+--------------------------------------
 
 --------------
 ---- IDOL ----
