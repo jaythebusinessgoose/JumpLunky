@@ -7,12 +7,13 @@ local level_sequence = require("LevelSequence/level_sequence")
 local SIGN_TYPE = level_sequence.SIGN_TYPE
 local telescopes = require("Telescopes/telescopes")
 local button_prompts = require("ButtonPrompts/button_prompts")
-local idols = require('idols')
+require('idols')
 local sound = require('play_sound')
 local journal = require('journal')
 local win_ui = require('win')
 local bottom_hud = require('bottom_hud')
 local clear_embeds = require('clear_embeds')
+local save_state = require('save_state')
 local DIFFICULTY = require('difficulty')
 
 local dwelling = require("dwelling")
@@ -32,93 +33,83 @@ local save_context
 local initial_bombs = 0
 local initial_ropes = 0
 
-local current_difficulty = DIFFICULTY.NORMAL
-
--- overall state
-local total_idols = 0
-local idols_collected = {}
-local hardcore_enabled = false
-local hardcore_previously_enabled = false
-
 local create_stats = require('stats')
-local stats = create_stats()
-local hardcore_stats = create_stats()
-local legacy_stats = create_stats(true)
-local legacy_hardcore_stats = create_stats(true)
-
-function stats.current_stats()
-	return stats.stats_for_difficulty(current_difficulty)
-end
-function legacy_stats.current_stats()
-	return legacy_stats.stats_for_difficulty(current_difficulty)
-end
-function hardcore_stats.current_stats()
-	return hardcore_stats.stats_for_difficulty(current_difficulty)
-end
-function legacy_hardcore_stats.current_stats()
-	return legacy_hardcore_stats.stats_for_difficulty(current_difficulty)
+local function create_saved_run()
+	return {
+		has_saved_run = false,
+		saved_run_attempts = nil,
+		saved_run_time = nil,
+		saved_run_level = nil,
+		saved_run_idol_count = nil,
+		saved_run_idols_collected = {},
+	}
 end
 
--- True if the player has seen ana dead in the sunken city level.
-local has_seen_ana_dead = false
+local game_state = {
+	difficulty = DIFFICULTY.NORMAL,
 
-local idols = 0
-local run_idols_collected = {}
+	hardcore_enabled = false,
+	hardcore_previously_enabled = false,
 
--- saved run state for the default difficulty.
-local easy_saved_run = {
-	has_saved_run = false,
-	saved_run_attempts = nil,
-	saved_run_time = nil,
-	saved_run_level = nil,
-	saved_run_idol_count = nil,
-	saved_run_idols_collected = {},
+	total_idols = 0,
+	idols_collected = {},
+
+	idols = 0,
+	run_idols_collected = {},
+
+	-- True if the player has seen ana dead in the sunken city level.
+	has_seen_ana_dead = false,
+
+	stats = create_stats(),
+	hardcore_stats = create_stats(),
+	legacy_stats = create_stats(true),
+	legacy_hardcore_stats = create_stats(true),
+
+	easy_saved_run = create_saved_run(),
+	normal_saved_run = create_saved_run(),
+	hard_saved_run = create_saved_run(),
 }
--- saved run state for the easy difficulty.
-local normal_saved_run = {
-	has_saved_run = false,
-	saved_run_attempts = nil,
-	saved_run_time = nil,
-	saved_run_level = nil,
-	saved_run_idol_count = nil,
-	saved_run_idols_collected = {},
-}
--- saved run state for the hard difficulty.
-local hard_saved_run = {
-	has_saved_run = false,
-	saved_run_attempts = nil,
-	saved_run_time = nil,
-	saved_run_level = nil,
-	saved_run_idol_count = nil,
-	saved_run_idols_collected = {},
-}
+
+function game_state.stats.current_stats()
+	return game_state.stats.stats_for_difficulty(game_state.difficulty)
+end
+function game_state.legacy_stats.current_stats()
+	return game_state.legacy_stats.stats_for_difficulty(game_state.difficulty)
+end
+function game_state.hardcore_stats.current_stats()
+	return game_state.hardcore_stats.stats_for_difficulty(game_state.difficulty)
+end
+function game_state.legacy_hardcore_stats.current_stats()
+	return game_state.legacy_hardcore_stats.stats_for_difficulty(game_state.difficulty)
+end
+
 -- saved run state for the current difficulty.
 local function current_saved_run()
-	if current_difficulty == DIFFICULTY.EASY then
-		return easy_saved_run
-	elseif current_difficulty == DIFFICULTY.HARD then
-		return hard_saved_run
+	if game_state.difficulty == DIFFICULTY.EASY then
+		return game_state.easy_saved_run
+	elseif game_state.difficulty == DIFFICULTY.HARD then
+		return game_state.hard_saved_run
 	else
-		return normal_saved_run
+		return game_state.normal_saved_run
 	end
 end
 
 local function set_hardcore_enabled(enabled)
-	hardcore_enabled = enabled
+	game_state.hardcore_enabled = enabled
 	bottom_hud.update_stats(
-		hardcore_enabled and hardcore_stats.current_stats() or stats.current_stats(),
-		hardcore_enabled,
-		current_difficulty)
-	level_sequence.set_keep_progress(not hardcore_enabled)
+		game_state.hardcore_enabled and game_state.hardcore_stats.current_stats() or game_state.stats.current_stats(),
+		game_state.hardcore_enabled,
+		game_state.difficulty)
+	level_sequence.set_keep_progress(not game_state.hardcore_enabled)
 	update_continue_door_enabledness()
 end
 
 local function set_difficulty(difficulty)
-	current_difficulty = difficulty
+	game_state.difficulty = difficulty
 	bottom_hud.update_stats(
-		hardcore_enabled and hardcore_stats.current_stats() or stats.current_stats(),
-		hardcore_enabled,
-		current_difficulty)
+		game_state.hardcore_enabled and game_state.hardcore_stats.current_stats() or game_state.stats.current_stats(),
+		game_state.hardcore_enabled,
+		game_state.difficulty)
 	bottom_hud.update_saved_run(current_saved_run())
 	update_continue_door_enabledness()
 end
@@ -156,7 +147,7 @@ end
 -- Spawn an idol that is not interactible in any way. Only spawns the idol if it has been collected
 -- from the level it is being spawned for.
 function spawn_camp_idol_for_level(level, x, y, layer)
-	if not idols_collected[level.identifier] then return end
+	if not game_state.idols_collected[level.identifier] then return end
 	
 	local idol_uid = spawn_entity(ENT_TYPE.ITEM_IDOL, x, y, layer, 0, 0)
 	local idol = get_entity(idol_uid)
@@ -255,12 +246,12 @@ set_pre_tile_code_callback(function(x, y, layer)
 	stats_sign_entity.flags = clr_flag(stats_sign_entity.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
 	stats_tv = button_prompts.spawn_button_prompt(button_prompts.PROMPT_TYPE.VIEW, x + 10, y, layer)
 	
-	if legacy_stats.normal and
-			legacy_stats.easy and
-			legacy_stats.hard and
-			legacy_hardcore_stats.normal and
-			legacy_hardcore_stats.easy and
-			legacy_hardcore_stats.hard then
+	if game_state.legacy_stats.normal and
+			game_state.legacy_stats.easy and
+			game_state.legacy_stats.hard and
+			game_state.legacy_hardcore_stats.normal and
+			game_state.legacy_hardcore_stats.easy and
+			game_state.legacy_hardcore_stats.hard then
 		legacy_stats_sign = spawn_entity(ENT_TYPE.ITEM_SPEEDRUN_SIGN, x + 11, y, layer, 0, 0)
 		local legacy_stats_sign_entity = get_entity(legacy_stats_sign)
 		-- This stops the sign from displaying its default toast text when pressing the door button.
@@ -291,7 +282,7 @@ end, ON.CAMP)
 function unique_idols_collected()
 	local unique_idol_count = 0
 	for i, lvl in ipairs(level_sequence.levels()) do
-		if idols_collected[lvl.identifier] then
+		if game_state.idols_collected[lvl.identifier] then
 			unique_idol_count = unique_idol_count + 1
 		end
 	end
@@ -311,7 +302,7 @@ set_callback(function()
 	local buttons = read_input(player.uid)
 	-- 8 = Journal
 	if test_flag(buttons, 8) and not journal.showing_stats() then
-		journal.show(stats, hardcore_stats, current_difficulty, 8)
+		journal.show(game_state.stats, game_state.hardcore_stats, game_state.difficulty, 8)
 
 		-- Cancel speech bubbles so they don't show above stats.
 		cancel_speechbubble()
@@ -333,7 +324,7 @@ set_callback(function()
 			stats_sign and get_entity(stats_sign) and
 			player.layer == get_entity(stats_sign).layer and 
 			distance(player.uid, stats_sign) <= .5 then
-		journal.show(stats, hardcore_stats, current_difficulty, 6)
+		journal.show(game_state.stats, game_state.hardcore_stats, game_state.difficulty, 6)
 
 		-- Cancel speech bubbles so they don't show above stats.
 		cancel_speechbubble()
@@ -346,7 +337,7 @@ set_callback(function()
 			legacy_stats_sign and 
 			player.layer == get_entity(legacy_stats_sign).layer and
 			distance(player.uid, legacy_stats_sign) <= .5 then
-		journal.show(legacy_stats, legacy_hardcore_stats, current_difficulty, 6)
+		journal.show(game_state.legacy_stats, game_state.legacy_hardcore_stats, game_state.difficulty, 6)
 
 		-- Cancel speech bubbles so they don't show above stats.
 		cancel_speechbubble()
@@ -371,10 +362,10 @@ set_callback(function()
 		-- Reset tunnel dialog states when exiting the back layer so the dialog shows again.
 		tunnel_enter_displayed = false
 		tunnel_exit_displayed = false
-		tunnel_enter_hardcore_state = hardcore_enabled
-		tunnel_exit_hardcore_state = hardcore_enabled
-		tunnel_enter_difficulty = current_difficulty
-		tunnel_exit_difficulty = current_difficulty
+		tunnel_enter_hardcore_state = game_state.hardcore_enabled
+		tunnel_exit_hardcore_state = game_state.hardcore_enabled
+		tunnel_enter_difficulty = game_state.difficulty
+		tunnel_exit_difficulty = game_state.difficulty
 		tunnel_exit_ready = false
 	elseif tunnel_enter_displayed and x > tunnel_x + 2 then
 		-- Do not show Tunnel's exit dialog until the player moves a bit to her right.
@@ -398,10 +389,10 @@ set_callback(function()
 	if player:is_button_pressed(BUTTON.DOOR) then
 		if player.layer == LAYER.BACK and hardcore_sign and distance(player.uid, hardcore_sign) <= .5 then
 			if hardcore_available() then
-				set_hardcore_enabled(not hardcore_enabled)
-				hardcore_previously_enabled = true
+				set_hardcore_enabled(not game_state.hardcore_enabled)
+				game_state.hardcore_previously_enabled = true
 				save_data()
-				if hardcore_enabled then
+				if game_state.hardcore_enabled then
 					toast("Hardcore mode enabled")
 				else
 					toast("Hardcore mode disabled")
@@ -410,14 +401,14 @@ set_callback(function()
 				toast("Collect more idols to unlock hardcore mode")
 			end
 		elseif player.layer == get_entity(easy_sign).layer and distance(player.uid, easy_sign) <= .5 then
-			if current_difficulty ~= DIFFICULTY.EASY then
+			if game_state.difficulty ~= DIFFICULTY.EASY then
 				set_difficulty(DIFFICULTY.EASY)
 				save_data()
 				toast("Easy mode enabled")
 			end
 		elseif player.layer == get_entity(hard_sign).layer and distance(player.uid, hard_sign) <= .5 then
 			if hardcore_available() then
-				if current_difficulty ~= DIFFICULTY.HARD then
+				if game_state.difficulty ~= DIFFICULTY.HARD then
 					set_difficulty(DIFFICULTY.HARD)
 					save_data()
 					toast("Hard mode enabled")
@@ -426,10 +417,10 @@ set_callback(function()
 				toast("collect more idols to unlock hard mode")
 			end
 		elseif player.layer == get_entity(normal_sign).layer and distance(player.uid, normal_sign) <= .5 then
-			if current_difficulty ~= DIFFICULTY.NORMAL then
-				if current_difficulty == DIFFICULTY.EASY then
+			if game_state.difficulty ~= DIFFICULTY.NORMAL then
+				if game_state.difficulty == DIFFICULTY.EASY then
 					toast("Easy mode disabled")
-				elseif current_difficulty == DIFFICULTY.HARD then
+				elseif game_state.difficulty == DIFFICULTY.HARD then
 					toast("Hard mode disabled")
 				end
 				set_difficulty(DIFFICULTY.NORMAL)
@@ -443,35 +434,40 @@ set_callback(function()
 		if not tunnel_enter_displayed then
 			-- Display a different Tunnel text on entering depending on how many idols have been collected and the hardcore state.
 			tunnel_enter_displayed = true
-			tunnel_enter_hardcore_state = hardcore_enabled
-			tunnel_enter_difficulty = current_difficulty
+			tunnel_enter_hardcore_state = game_state.hardcore_enabled
+			tunnel_enter_difficulty = game_state.difficulty
 			if unique_idols_collected() == 0 then
 				say(tunnel.uid, "Looking to turn down the heat?", 0, true)
 			elseif unique_idols_collected() < 2 then
 				say(tunnel.uid, "Come back when you're seasoned for a more difficult challenge.", 0, true)
-			elseif hardcore_enabled then
+			elseif game_state.hardcore_enabled then
 				say(tunnel.uid, "Maybe that was too much. Go back over to disable hardcore mode.", 0, true)
-			elseif current_difficulty == DIFFICULTY.HARD then
+			elseif game_state.difficulty == DIFFICULTY.HARD then
 				say(tunnel.uid, "Maybe that was too much. Go back over to disable hard mode.", 0, true)
-			elseif hardcore_previously_enabled then
+			elseif game_state.hardcore_previously_enabled then
 				say(tunnel.uid, "Back to try again? Step on over.", 0, true)
 			elseif hardcore_available() then
 				say(tunnel.uid, "This looks too easy for you. Step over there to enable hardcore mode.", 0, true)
 			else
 				say(tunnel.uid, "You're quite the adventurer. Collect the rest of the idols to unlock a more difficult challenge.", 0, true)
 			end
-		elseif (not tunnel_exit_displayed or tunnel_exit_hardcore_state ~= hardcore_enabled or tunnel_exit_difficulty ~= current_difficulty) and tunnel_exit_ready and (hardcore_available() or (current_difficulty == DIFFICULTY.EASY and tunnel_exit_difficulty ~=DIFFICULTY.EASY)) then
+		elseif (not tunnel_exit_displayed or
+					tunnel_exit_hardcore_state ~= game_state.hardcore_enabled or
+					tunnel_exit_difficulty ~= game_state.difficulty) and
+				tunnel_exit_ready and
+				(hardcore_available() or
+					(game_state.difficulty == DIFFICULTY.EASY and tunnel_exit_difficulty ~=DIFFICULTY.EASY)) then
 			-- On exiting, display a Tunnel dialog depending on whether hardcore mode has been enabled/disabled or the difficulty changed.
 			cancel_speechbubble()
 			tunnel_exit_displayed = true
-			tunnel_exit_hardcore_state = hardcore_enabled
-			tunnel_exit_difficulty = current_difficulty
+			tunnel_exit_hardcore_state = game_state.hardcore_enabled
+			tunnel_exit_difficulty = game_state.difficulty
 			set_timeout(function()
-				if hardcore_enabled and not tunnel_enter_hardcore_state or current_difficulty > tunnel_enter_difficulty then
+				if game_state.hardcore_enabled and not tunnel_enter_hardcore_state or game_state.difficulty > tunnel_enter_difficulty then
 					say(tunnel.uid, "Good luck out there!", 0, true)
-				elseif not hardcore_enabled and tunnel_enter_hardcore_state or current_difficulty < tunnel_enter_difficulty then
+				elseif not game_state.hardcore_enabled and tunnel_enter_hardcore_state or game_state.difficulty < tunnel_enter_difficulty then
 					say(tunnel.uid, "Take it easy.", 0, true)
-				elseif hardcore_enabled or current_difficulty == DIFFICULTY.HARD then
+				elseif game_state.hardcore_enabled or game_state.difficulty == DIFFICULTY.HARD then
 					say(tunnel.uid, "Sticking with it. I like your guts!", 0, true)
 				else
 					say(tunnel.uid, "Maybe another time.", 0, true)
@@ -485,7 +481,7 @@ set_callback(function()
 			cancel_speechbubble()
 			player_near_hardcore_sign = true
 			set_timeout(function()
-				if hardcore_enabled then
+				if game_state.hardcore_enabled then
 					say(hardcore_sign, "Hardcore mode (enabled)", 0, true)
 				else
 					say(hardcore_sign, "Hardcore mode", 0, true)
@@ -501,7 +497,7 @@ set_callback(function()
 			cancel_speechbubble()
 			player_near_easy_sign = true
 			set_timeout(function()
-				if current_difficulty == DIFFICULTY.EASY then
+				if game_state.difficulty == DIFFICULTY.EASY then
 					say(easy_sign, "Easy mode (enabled)", 0, true)
 				else
 					say(easy_sign, "Easy mode", 0, true)
@@ -517,7 +513,7 @@ set_callback(function()
 			cancel_speechbubble()
 			player_near_normal_sign = true
 			set_timeout(function()
-				if current_difficulty == DIFFICULTY.NORMAL then
+				if game_state.difficulty == DIFFICULTY.NORMAL then
 					say(normal_sign, "Normal mode (enabled)", 0, true)
 				else
 					say(normal_sign, "Normal mode", 0, true)
@@ -533,7 +529,7 @@ set_callback(function()
 			cancel_speechbubble()
 			player_near_hard_sign = true
 			set_timeout(function()
-				if current_difficulty == DIFFICULTY.HARD then
+				if game_state.difficulty == DIFFICULTY.HARD then
 					say(hard_sign, "Hard mode (enabled)", 0, true)
 				else
 					say(hard_sign, "Hard mode", 0, true)
@@ -571,7 +567,7 @@ end, ON.GAMEFRAME)
 
 -- Sorry, Ana...
 set_post_entity_spawn(function (entity)
-	if has_seen_ana_dead then
+	if game_state.has_seen_ana_dead then
 		if state.screen == 11 then
 			entity.x = 1000
 		else
@@ -589,16 +585,16 @@ end, SPAWN_TYPE.ANY, MASK.ANY, ENT_TYPE.CHAR_ANA_SPELUNKY)
 --------------------------------------
 
 level_sequence.set_on_level_will_load(function(level)
-	level.set_difficulty(current_difficulty)
+	level.set_difficulty(game_state.difficulty)
 	if level == sunken_city then
-		level.set_idol_collected(idols_collected[level.identifier])
-		level.set_run_idol_collected(run_idols_collected[level.identifier])
+		level.set_idol_collected(game_state.idols_collected[level.identifier])
+		level.set_run_idol_collected(game_state.run_idols_collected[level.identifier])
 		level.set_ana_callback(function()
 			has_seen_ana_dead = true
 		end)
 	elseif level == ice_caves then
-		level.set_idol_collected(idols_collected[level.identifier])
-		level.set_run_idol_collected(run_idols_collected[level.identifier])
+		level.set_idol_collected(game_state.idols_collected[level.identifier])
+		level.set_run_idol_collected(game_state.run_idols_collected[level.identifier])
 	end
 end)
 
@@ -617,8 +613,8 @@ end)
 level_sequence.set_on_completed_level(function(completed_level, next_level)
 	if not next_level then return end
 	-- Update stats for the current difficulty mode.
-	local current_stats = stats.current_stats()
-	local stats_hardcore = hardcore_stats.current_stats()
+	local current_stats = game_state.stats.current_stats()
+	local stats_hardcore = game_state.hardcore_stats.current_stats()
 	local best_level_index = level_sequence.index_of_level(current_stats.best_level)
 	local hardcore_best_level_index = level_sequence.index_of_level(stats_hardcore.best_level)
 	local current_level_index = level_sequence.index_of_level(next_level)
@@ -627,7 +623,7 @@ level_sequence.set_on_completed_level(function(completed_level, next_level)
 			not level_sequence.took_shortcut() then
 				current_stats.best_level = next_level
 	end
-	if hardcore_enabled and
+	if game_state.hardcore_enabled and
 			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
 			not level_sequence.took_shortcut() then
 		stats_hardcore.best_level = next_level
@@ -636,13 +632,13 @@ end)
 
 level_sequence.set_on_win(function(attempts, total_time)
 	print(f'attempts: {attempts} total_time: {total_time}')
-	local current_stats = stats.current_stats()
-	local stats_hardcore = hardcore_stats.current_stats()
+	local current_stats = game_state.stats.current_stats()
+	local stats_hardcore = game_state.hardcore_stats.current_stats()
 	if not level_sequence.took_shortcut() then
 		local deaths = attempts - 1
 
 		current_stats.completions = current_stats.completions + 1
-		if hardcore_enabled then
+		if game_state.hardcore_enabled then
 			stats_hardcore.completions = stats_hardcore.completions + 1
 		else
 			-- Clear the saved run for the current difficulty if hardcore is disabled.
@@ -661,31 +657,31 @@ level_sequence.set_on_win(function(attempts, total_time)
 				total_time < current_stats.best_time then
 			current_stats.best_time = total_time
 			new_time_pb = true
-			if current_difficulty ~= DIFFICULTY.EASY then
-				current_stats.best_time_idol_count = idols
+			if game_state.difficulty ~= DIFFICULTY.EASY then
+				current_stats.best_time_idol_count = game_state.idols
 			end
 			current_stats.best_time_death_count = deaths
 		end
 
-		if hardcore_enabled and
+		if game_state.hardcore_enabled and
 				(not stats_hardcore.best_time or
 				stats_hardcore.best_time == 0 or
 				total_time < stats_hardcore.best_time) then
 			stats_hardcore.best_time = total_time
 			new_time_pb = true
-			if current_difficulty ~= DIFFICULTY.EASY then
-				stats_hardcore.best_time_idol_count = idols
+			if game_state.difficulty ~= DIFFICULTY.EASY then
+				stats_hardcore.best_time_idol_count = game_state.idols
 			end
 		end
 		
-		if idols == #level_sequence.levels() and current_difficulty ~= DIFFICULTY.EASY then
+		if game_state.idols == #level_sequence.levels() and game_state.difficulty ~= DIFFICULTY.EASY then
 			current_stats.max_idol_completions = current_stats.max_idol_completions + 1
 			if not current_stats.max_idol_best_time or
 					current_stats.max_idol_best_time == 0 or
 					total_time < current_stats.max_idol_best_time then
 				current_stats.max_idol_best_time = total_time
 			end
-			if hardcore_enabled then
+			if game_state.hardcore_enabled then
 				stats_hardcore.max_idol_completions = stats_hardcore.max_idol_completions + 1
 				if not stats_hardcore.max_idol_best_time or
 						stats_hardcore.max_idol_best_time == 0 or
@@ -714,11 +710,11 @@ level_sequence.set_on_win(function(attempts, total_time)
 		win_ui.win(
 			total_time,
 			deaths,
-			idols,
-			current_difficulty,
-			stats,
-			hardcore_stats,
-			hardcore_enabled,
+			game_state.idols,
+			game_state.difficulty,
+			game_state.stats,
+			game_state.hardcore_stats,
+			game_state.hardcore_enabled,
 			#level_sequence.levels(),
 			new_time_pb,
 			new_deaths_pb)
@@ -733,8 +729,8 @@ end)
 set_callback(function ()
 	-- Update the PB if the new level has not been reached yet. This is only really for the first time entering Dwelling,
 	-- since other times ON.RESET will not have an increased level from the best_level.
-	local current_stats = stats.current_stats()
-	local stats_hardcore = hardcore_stats.current_stats()
+	local current_stats = game_state.stats.current_stats()
+	local stats_hardcore = game_state.hardcore_stats.current_stats()
 	local best_level_index = level_sequence.index_of_level(current_stats.best_level)
 	local hardcore_best_level_index = level_sequence.index_of_level(stats_hardcore.best_level)
 	local current_level = level_sequence.get_run_state().current_level
@@ -743,7 +739,7 @@ set_callback(function ()
 			not level_sequence.took_shortcut() then
 		current_stats.best_level = current_level
 	end
-	if hardcore_enabled and
+	if game_state.hardcore_enabled and
 			(not hardcore_best_level_index or current_level_index > hardcore_best_level_index) and
 			not level_sequence.took_shortcut() then
 		stats_hardcore.best_level = current_level
@@ -758,23 +754,23 @@ end
 
 local function update_hud_run_state()
 	local run_state = level_sequence.get_run_state()
-	bottom_hud.update_run(idols, run_state.attempts, run_state.total_time)
+	bottom_hud.update_run(game_state.idols, run_state.attempts, run_state.total_time)
 end
 
 level_sequence.set_on_reset_run(function()
-	run_idols_collected = {}
-	idols = 0
+	game_state.run_idols_collected = {}
+	game_state.idols = 0
 	update_hud_run_state()
 end)
 
 level_sequence.set_on_prepare_initial_level(function(level, continuing)
 	local saved_run = current_saved_run()
 	if continuing then
-		idols = saved_run.saved_run_idol_count
-		run_idols_collected = saved_run.saved_run_idols_collected
+		game_state.idols = saved_run.saved_run_idol_count
+		game_state.run_idols_collected = saved_run.saved_run_idols_collected
 	else
-		idols = 0
-		run_idols_collected = {}
+		game_state.idols = 0
+		game_state.run_idols_collected = {}
 	end
 	update_hud_run_state()
 	update_hud_run_entry(continuing)
@@ -798,9 +794,9 @@ set_post_entity_spawn(function(entity)
 end, SPAWN_TYPE.ANY, 0, ENT_TYPE.ITEM_IDOL, ENT_TYPE.ITEM_MADAMETUSK_IDOL)
 
 function idol_collected_state_for_level(level)
-	if run_idols_collected[level.identifier] then
+	if game_state.run_idols_collected[level.identifier] then
 		return IDOL_COLLECTED_STATE.COLLECTED_ON_RUN
-	elseif idols_collected[level.identifier] then
+	elseif game_state.idols_collected[level.identifier] then
 		return IDOL_COLLECTED_STATE.COLLECTED
 	end
 	return IDOL_COLLECTED_STATE.NOT_COLLECTED
@@ -813,15 +809,15 @@ set_pre_tile_code_callback(function(x, y, layer)
 		y,
 		layer,
 		idol_collected_state_for_level(level_sequence.get_run_state().current_level),
-		current_difficulty == DIFFICULTY.EASY)
+		game_state.difficulty == DIFFICULTY.EASY)
 end, "idol_reward")
 
 set_vanilla_sound_callback(VANILLA_SOUND.UI_DEPOSIT, VANILLA_SOUND_CALLBACK_TYPE.STARTED, function()
 	-- Consider the idol collected when the deposit sound effect plays.
-	idols_collected[level_sequence.get_run_state().current_level.identifier] = true
-	run_idols_collected[level_sequence.get_run_state().current_level.identifier] = true
-	idols = idols + 1
-	total_idols = total_idols + 1
+	game_state.idols_collected[level_sequence.get_run_state().current_level.identifier] = true
+	game_state.run_idols_collected[level_sequence.get_run_state().current_level.identifier] = true
+	game_state.idols = game_state.idols + 1
+	game_state.total_idols = game_state.total_idols + 1
 	update_hud_run_state()
 end)
 
@@ -856,7 +852,7 @@ end
 set_callback(function ()
     if state.theme == THEME.BASE_CAMP then return end
 	if level_sequence.run_in_progress() then
-		if not hardcore_enabled then
+		if not game_state.hardcore_enabled then
 			save_current_run_stats()
 		end
 		save_data()
@@ -876,15 +872,15 @@ function save_current_run_stats()
 	local run_state = level_sequence.get_run_state()
 	-- Save the current run only if there is a run in progress that did not start from a shorcut, and harcore mode is disabled.
 	if not level_sequence.took_shortcut() and
-			not hardcore_enabled and
+			not game_state.hardcore_enabled and
 			state.theme ~= THEME.BASE_CAMP and
 			level_sequence.run_in_progress() then
 		local saved_run = current_saved_run()
 		saved_run.saved_run_attempts = run_state.attempts
-		saved_run.saved_run_idol_count = idols
+		saved_run.saved_run_idol_count = game_state.idols
 		saved_run.saved_run_level = run_state.current_level
 		saved_run.saved_run_time = run_state.total_time
-		saved_run.saved_run_idols_collected = run_idols_collected
+		saved_run.saved_run_idols_collected = game_state.run_idols_collected
 		saved_run.has_saved_run = true
 	end
 end
@@ -947,6 +943,7 @@ set_callback(function (ctx)
 			set_difficulty(load_data.difficulty)
 		end
 		if not load_version then 
+			local normal_stats = game_state.stats.normal
 			normal_stats.best_time = load_data.best_time
 			normal_stats.best_time_idol_count = load_data.best_time_idols
 			normal_stats.best_time_death_count = load_data.best_time_death_count
@@ -971,22 +968,22 @@ set_callback(function (ctx)
 				return new_stats
 			end
 			if load_data.stats then
-				legacy_stats.normal = legacy_stat_convert(load_data.stats)
+				game_state.legacy_stats.normal = legacy_stat_convert(load_data.stats)
 			end
 			if load_data.easy_stats then
-				legacy_stats.easy = legacy_stat_convert(load_data.easy_stats)
+				game_state.legacy_stats.easy = legacy_stat_convert(load_data.easy_stats)
 			end
 			if load_data.hard_stats then
-				legacy_stats.hard = legacy_stat_convert(load_data.hard_stats)
+				game_state.legacy_stats.hard = legacy_stat_convert(load_data.hard_stats)
 			end
 			if load_data.hardcore_stats then
-				legacy_hardcore_stats.normal = legacy_stat_convert(load_data.hardcore_stats)
+				game_state.legacy_hardcore_stats.normal = legacy_stat_convert(load_data.hardcore_stats)
 			end
 			if load_data.hardcore_stats_easy then
-				legacy_hardcore_stats.easy = legacy_stat_convert(load_data.hardcore_stats_easy)
+				game_state.legacy_hardcore_stats.easy = legacy_stat_convert(load_data.hardcore_stats_easy)
 			end
 			if load_data.hardcore_stats_hard then
-				legacy_hardcore_stats.hard = legacy_stat_convert(load_data.hardcore_stats_hard)
+				game_state.legacy_hardcore_stats.hard = legacy_stat_convert(load_data.hardcore_stats_hard)
 			end
 		else
 			local function stat_convert(stats)
@@ -998,50 +995,50 @@ set_callback(function (ctx)
 				return new_stats
 			end
 			if load_data.stats then
-				stats.normal = stat_convert(load_data.stats)
+				game_state.stats.normal = stat_convert(load_data.stats)
 			end
 			if load_data.easy_stats then
-				stats.easy = stat_convert(load_data.easy_stats)
+				game_state.stats.easy = stat_convert(load_data.easy_stats)
 			end
 			if load_data.hard_stats then
-				stats.hard = stat_convert(load_data.hard_stats)
+				game_state.stats.hard = stat_convert(load_data.hard_stats)
 			end
 			if load_data.legacy_stats then
-				legacy_stats.normal = stat_convert(load_data.legacy_stats)
+				game_state.legacy_stats.normal = stat_convert(load_data.legacy_stats)
 			end
 			if load_data.legacy_easy_stats then
-				legacy_stats.easy = stat_convert(load_data.legacy_easy_stats)
+				game_state.legacy_stats.easy = stat_convert(load_data.legacy_easy_stats)
 			end
 			if load_data.legacy_hard_stats then
-				legacy_stats.hard = stat_convert(load_data.legacy_hard_stats)
+				game_state.legacy_stats.hard = stat_convert(load_data.legacy_hard_stats)
 			end
 			
 			
 			if load_data.hardcore_stats then
-				hardcore_stats.normal = stat_convert(load_data.hardcore_stats)
+				game_state.hardcore_stats.normal = stat_convert(load_data.hardcore_stats)
 			end
 			if load_data.hardcore_stats_easy then
-				hardcore_stats.easy = stat_convert(load_data.hardcore_stats_easy)
+				game_state.hardcore_stats.easy = stat_convert(load_data.hardcore_stats_easy)
 			end
 			if load_data.hardcore_stats_hard then
-				hardcore_stats.hard = stat_convert(load_data.hardcore_stats_hard)
+				game_state.hardcore_stats.hard = stat_convert(load_data.hardcore_stats_hard)
 			end
 			
 			if load_data.legacy_hardcore_stats then
-				legacy_hardcore_stats.normal = stat_convert(load_data.legacy_hardcore_stats)
+				game_state.legacy_hardcore_stats.normal = stat_convert(load_data.legacy_hardcore_stats)
 			end
 			if load_data.legacy_hardcore_stats_easy then
-				legacy_hardcore_stats.easy = stat_convert(load_data.legacy_hardcore_stats_easy)
+				game_state.legacy_hardcore_stats.easy = stat_convert(load_data.legacy_hardcore_stats_easy)
 			end
 			if load_data.legacy_hardcore_stats_hard then
-				legacy_hardcore_stats.hard = stat_convert(load_data.legacy_hardcore_stats_hard)
+				game_state.legacy_hardcore_stats.hard = stat_convert(load_data.legacy_hardcore_stats_hard)
 			end
 		end
 
-		idols_collected = load_data.idol_levels
-		total_idols = load_data.total_idols
+		game_state.idols_collected = load_data.idol_levels
+		game_state.total_idols = load_data.total_idols
 		set_hardcore_enabled(load_data.hardcore_enabled)
-		hardcore_previously_enabled = load_data.hpe
+		game_state.hardcore_previously_enabled = load_data.hpe
 		
 		function load_saved_run_data(saved_run, saved_run_data)
 			saved_run.has_saved_run = saved_run_data.has_saved_run or not load_version
@@ -1056,16 +1053,15 @@ set_callback(function (ctx)
 		local saved_run_data = load_data.saved_run_data
 		local hard_saved_run_data = load_data.hard_saved_run
 		if saved_run_data then
-			load_saved_run_data(normal_saved_run, saved_run_data)
+			load_saved_run_data(game_state.normal_saved_run, saved_run_data)
 		end
 		if easy_saved_run_data then
-			load_saved_run_data(easy_saved_run, easy_saved_run_data)
-			print(inspect(easy_saved_run))
+			load_saved_run_data(game_state.easy_saved_run, easy_saved_run_data)
 		end
 		if hard_saved_run_data then
-			load_saved_run_data(hard_saved_run, hard_saved_run_data)
+			load_saved_run_data(game_state.hard_saved_run, hard_saved_run_data)
 		end
-		has_seen_ana_dead = load_data.has_seen_ana_dead
+		game_state.has_seen_ana_dead = load_data.has_seen_ana_dead
     end
 end, ON.LOAD)
 
@@ -1082,9 +1078,9 @@ function force_save(ctx)
 		}
 		return saved_run_data
 	end
-	local normal_saved_run_data = saved_run_datar(normal_saved_run)
-	local easy_saved_run_data = saved_run_datar(easy_saved_run)
-	local hard_saved_run_data = saved_run_datar(hard_saved_run)
+	local normal_saved_run_data = saved_run_datar(game_state.normal_saved_run)
+	local easy_saved_run_data = saved_run_datar(game_state.easy_saved_run)
+	local hard_saved_run_data = saved_run_datar(game_state.hard_saved_run)
 	local function convert_stats(stats)
 		if not stats then return nil end
 		local new_stats = {}
@@ -1099,27 +1095,27 @@ function force_save(ctx)
 	end
     local save_data = {
 		version = '1.5',
-		idol_levels = idols_collected,
-		total_idols = total_idols,
+		idol_levels = game_state.idols_collected,
+		total_idols = game_state.total_idols,
 		saved_run_data = normal_saved_run_data,
 		easy_saved_run = easy_saved_run_data,
 		hard_saved_run = hard_saved_run_data,
-		stats = convert_stats(stats.normal),
-		easy_stats = convert_stats(stats.easy),
-		hard_stats = convert_stats(stats.hard),
-		legacy_stats = convert_stats(legacy_stats.normal),
-		legacy_easy_stats = convert_stats(legacy_stats.easy),
-		legacy_hard_stats = convert_stats(legacy_stats.hard),
-		has_seen_ana_dead = has_seen_ana_dead,
-		hardcore_enabled = hardcore_enabled,
-		difficulty = current_difficulty,
-		hpe = hardcore_previously_enabled,
-		hardcore_stats = convert_stats(hardcore_stats.normal),
-		hardcore_stats_easy = convert_stats(hardcore_stats.easy),
-		hardcore_stats_hard = convert_stats(hardcore_stats.hard),
-		legacy_hardcore_stats = convert_stats(legacy_hardcore_stats.normal),
-		legacy_hardcore_stats_easy = convert_stats(legacy_hardcore_stats.easy),
-		legacy_hardcore_stats_hard = convert_stats(legacy_hardcore_stats.hard),
+		stats = convert_stats(game_state.stats.normal),
+		easy_stats = convert_stats(game_state.stats.easy),
+		hard_stats = convert_stats(game_state.stats.hard),
+		legacy_stats = convert_stats(game_state.legacy_stats.normal),
+		legacy_easy_stats = convert_stats(game_state.legacy_stats.easy),
+		legacy_hard_stats = convert_stats(game_state.legacy_stats.hard),
+		has_seen_ana_dead = game_state.has_seen_ana_dead,
+		hardcore_enabled = game_state.hardcore_enabled,
+		difficulty = game_state.difficulty,
+		hpe = game_state.hardcore_previously_enabled,
+		hardcore_stats = convert_stats(game_state.hardcore_stats.normal),
+		hardcore_stats_easy = convert_stats(game_state.hardcore_stats.easy),
+		hardcore_stats_hard = convert_stats(game_state.hardcore_stats.hard),
+		legacy_hardcore_stats = convert_stats(game_state.legacy_hardcore_stats.normal),
+		legacy_hardcore_stats_easy = convert_stats(game_state.legacy_hardcore_stats.easy),
+		legacy_hardcore_stats_hard = convert_stats(game_state.legacy_hardcore_stats.hard),
     }
 
     ctx:save(json.encode(save_data))
@@ -1134,5 +1130,5 @@ end, ON.SAVE)
 ---- /SAVE DATA ----
 --------------------
 
-set_hardcore_enabled(hardcore_enabled)
-set_difficulty(current_difficulty)
+set_hardcore_enabled(game_state.hardcore_enabled)
+set_difficulty(game_state.difficulty)
