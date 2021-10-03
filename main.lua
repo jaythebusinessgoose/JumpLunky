@@ -1,5 +1,5 @@
 meta.name = 'Jumplunky'
-meta.version = '1.5'
+meta.version = '2.0'
 meta.description = 'Challenging platforming puzzles'
 meta.author = 'JayTheBusinessGoose'
 

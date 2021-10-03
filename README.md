@@ -2,7 +2,7 @@
 
 Kaizo-like levels in Spelunky 2.
 
-Currently includes 4 levels, with more in development. The 4 levels have the following themes:
+Currently includes 5 levels with the following themes:
 - Dwelling (Enemy jumping)
 - Volcana (Chain jumping)
 - Temple (Crush trap puzzles)
@@ -12,6 +12,26 @@ Currently includes 4 levels, with more in development. The 4 levels have the fol
 Can you beat them all? Can you collect all of the golden idols?
 <br/>
 ## Version History
+
+### Version 2.0:
+
+Fixed an issue where a certain mount wasn't being killed properly and causing weird glitches.
+
+Changed rendering of certain objects to be more visible and use the correct texture.
+
+Fixed bug where unwanted enemies and mounts would sometimes spawn in the ice caves ice.
+
+Slightly changed the base camp layout of the shortcuts so it is more obvious the correct order of levels.
+
+Added a trap to the temple to reduce distractions.
+
+Modified journal button while in level to show stats instead.
+
+Added a HUD to the telescope that shows the directions it can be moved.
+
+Added a line of dialog to the sunken city.
+
+The script can now be disabled and the game will be played mostly normally. However, while disabled the base camp and some textures will still be modified so it is preferrable to launch the game without the Mod selected instead of disabling it.
 
 ### Version 1.5:
 
