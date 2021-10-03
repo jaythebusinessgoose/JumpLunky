@@ -24,6 +24,7 @@ local ice_caves = require("ice_caves")
 local sunken_city = require("sunken_city")
 
 level_sequence.set_levels({dwelling, volcana, temple, ice_caves, sunken_city})
+telescopes.set_hud_button_insets(0, 0, .1, 0)
 
 -- Forward declare local function
 local update_continue_door_enabledness
