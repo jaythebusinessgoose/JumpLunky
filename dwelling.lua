@@ -83,6 +83,7 @@ dwelling.load_level = function()
         bat_generator.on_off = false
     end, SPAWN_TYPE.SYSTEMIC, 0, {ENT_TYPE.MONS_SORCERESS, ENT_TYPE.MONS_VAMPIRE, ENT_TYPE.MONS_WITCHDOCTOR, ENT_TYPE.MONS_NECROMANCER})
     
+    local has_activated_bats = false
     level_state.callbacks[#level_state.callbacks+1] = set_callback(function ()
         local bat_entity = get_entity(spawned_bat)
         if bat_entity and bat_entity.health == 0 then
@@ -90,8 +91,9 @@ dwelling.load_level = function()
             bat_generator.on_off = true
             spawned_bat = nil
         end
-        if bat_switch.timer > 0 and bat_entity == nil and not bat_generator.on_off then
+        if bat_switch.timer > 0 and not has_activated_bats then
             bat_generator.on_off = true
+            has_activated_bats = true
             
             sound.play_sound(VANILLA_SOUND.UI_SECRET)
         end
@@ -114,6 +116,7 @@ dwelling.load_level = function()
         return true
     end, "totem_switch")
 
+    local has_activated_totem = false
     level_state.callbacks[#level_state.callbacks+1] = set_callback(function()
         if not totem_switch then return end
         if totem_switch.timer > 0 and not has_activated_totem then
