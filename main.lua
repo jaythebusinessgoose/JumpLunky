@@ -160,16 +160,16 @@ end
 -- Creates a "room" for the Volcana shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("volcana_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	level_sequence.spawn_shortcut(x, y, layer, volcana, SIGN_TYPE.RIGHT)
-	spawn_camp_idol_for_level(volcana, x + 1, y, layer)
+	level_sequence.spawn_shortcut(x, y, layer, volcana, SIGN_TYPE.LEFT)
+	spawn_camp_idol_for_level(volcana, x - 1, y, layer)
 	return true
 end, "volcana_shortcut")
 
 -- Creates a "room" for the Temple shortcut, with a door, a sign, and an idol if it has been collected.
 define_tile_code("temple_shortcut")
 set_pre_tile_code_callback(function(x, y, layer)
-	level_sequence.spawn_shortcut(x, y, layer, temple, SIGN_TYPE.RIGHT)
-	spawn_camp_idol_for_level(temple, x + 1, y, layer)
+	level_sequence.spawn_shortcut(x, y, layer, temple, SIGN_TYPE.LEFT)
+	spawn_camp_idol_for_level(temple, x - 1, y, layer)
 	return true
 end, "temple_shortcut")
 
