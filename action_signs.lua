@@ -95,9 +95,6 @@ function action_signs.deactivate()
     end
     action_sign_state.callbacks = {}
 
-    for _, sign in pairs(action_sign_state.signs) do
-        sign.destroy()
-    end
     action_sign_state.signs = {}
 end
 
