@@ -777,7 +777,7 @@ set_ghost_spawn_times(-1, -1)
 --------------------------------------
 
 -- Manage saving data and keeping the time in sync during level transitions and resets.
-local function save_data()
+function save_data()
 	if save_context then
 		force_save(save_context)
 	end
@@ -861,7 +861,7 @@ set_callback(function(ctx)
 	set_hardcore_enabled(game_state.hardcore_enabled)
 end, ON.LOAD)
 
-local function force_save(ctx)
+function force_save(ctx)
 	save_state.save(game_state, level_sequence, ctx)
 end
 
