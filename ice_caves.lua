@@ -69,7 +69,7 @@ ice_caves.load_level = function()
     level_state.callbacks[#level_state.callbacks+1] = set_post_entity_spawn(function(entity)
         if level ~= ICE_LEVEL then return end
         -- Spawn the ice turkey dead so it can't be ridden.
-        entity.health = 0
+        kill_entity(entity.uid, false)
     end, SPAWN_TYPE.ANY, 0, ENT_TYPE.MOUNT_TURKEY)
 
     -- Spawn a yeti in ice that must be extracted.
