@@ -783,23 +783,27 @@ function save_data()
 	end
 end
 
+function save_current_run_stats()
+	local run_state = level_sequence.get_run_state()
+	-- Save the current run only if there is a run in progress that did not start from a shorcut, and harcore mode is disabled.
+	if not level_sequence.took_shortcut() and
+			not game_state.hardcore_enabled and
+			state.theme ~= THEME.BASE_CAMP and
+			level_sequence.run_in_progress() then
+		local saved_run = current_saved_run()
+		saved_run.saved_run_attempts = run_state.attempts
+		saved_run.saved_run_idol_count = game_state.idols
+		saved_run.saved_run_level = run_state.current_level
+		saved_run.saved_run_time = run_state.total_time
+		saved_run.saved_run_idols_collected = game_state.run_idols_collected
+		saved_run.has_saved_run = true
+	end
+end
+
 -- Saves the current state of the run so that it can be continued later if exited.
 local function save_current_run_stats_callback()
 	return set_callback(function()
-		local run_state = level_sequence.get_run_state()
-		-- Save the current run only if there is a run in progress that did not start from a shorcut, and harcore mode is disabled.
-		if not level_sequence.took_shortcut() and
-				not game_state.hardcore_enabled and
-				state.theme ~= THEME.BASE_CAMP and
-				level_sequence.run_in_progress() then
-			local saved_run = current_saved_run()
-			saved_run.saved_run_attempts = run_state.attempts
-			saved_run.saved_run_idol_count = game_state.idols
-			saved_run.saved_run_level = run_state.current_level
-			saved_run.saved_run_time = run_state.total_time
-			saved_run.saved_run_idols_collected = game_state.run_idols_collected
-			saved_run.has_saved_run = true
-		end
+		save_current_run_stats()
 	end, ON.FRAME)
 end
 

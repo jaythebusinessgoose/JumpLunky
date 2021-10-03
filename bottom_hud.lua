@@ -200,18 +200,6 @@ end
 function hud.deactivate()
     if not hud_state.active then return end
     hud_state.active = false
-    
-    hud_state.stats = nil
-    hud_state.saved_run = nil
-    hud_state.hardcore = false
-    hud_state.difficulty = DIFFICULTY.NORMAL
-    hud_state.won = false
-    hud_state.initial_level = nil
-    hud_state.shortcut = false
-    hud_state.continued = false
-    hud_state.idols = nil
-    hud_state.attempts = nil
-    hud_state.time = nil
 
     for _, callback in pairs(hud_state.callbacks) do
         clear_callback(callback)
