@@ -124,6 +124,8 @@ function win_ui.activate()
         local current_stats = win_state.stats.current_stats()
         local current_hardcore_stats = win_state.hardcore_stats.current_stats()
         
+        local format_time = format_time
+
         local stat_texts = {}
         local pb_stat_texts = {}
         function add_stat(text)
