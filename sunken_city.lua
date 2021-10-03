@@ -245,6 +245,7 @@ sunken_city.load_level = function()
     local sun_challenge_activation_time
     local has_completed_sun_challenge = false
     local sun_challenge_toast_shown = 0
+    local paid_no_laser_toast_shown = false
     level_state.callbacks[#level_state.callbacks+1] = set_callback(function ()
         -- This allows us to kill all of the spawns when the challenge is completed or the player dies.
         local function clear_sun_challenge_spawns()
@@ -373,8 +374,23 @@ sunken_city.load_level = function()
             local playerx, playery, playerLayer = get_position(players[1].uid)
             
             -- Reset the wait timer if the player leaves the waiting room within 90 frames (1.5 seconds) of entering it.
-            if not (layer == playerLayer and playerx > minx and playerx < maxx - 1 and playery < miny + 3 and playery > miny) then
+            if not (layer == playerLayer and
+                    playerx > minx and
+                    playerx < maxx - 1 and
+                    playery < miny + 3 and
+                    playery > miny) then
                 sun_wait_timer = state.time_level
+                if layer == playerLayer and
+                        playery >= miny and
+                        playerx >= maxx and
+                        not paid_no_laser_toast_shown and
+                        not has_switched_forcefield then
+                    set_timeout(function()
+                        -- Wait until the layer transition completes before saying the text.
+                        say(players[1].uid, "It looks like I still need to deactivate this laser before trying the challenge.", 0, true)
+                    end, 20)
+                    paid_no_laser_toast_shown = true
+                end
             end
         elseif state.kali_favor >= 3 then
             cancel_toast()
