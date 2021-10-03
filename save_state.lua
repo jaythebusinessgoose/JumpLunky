@@ -164,6 +164,7 @@ function save_state.load(game_state, level_sequence, ctx)
 		game_state.hardcore_previously_enabled = load_data.hpe
 		
 		function load_saved_run_data(saved_run, saved_run_data)
+            if not saved_run_data or not saved_run_data.has_saved_run then return end
 			saved_run.has_saved_run = saved_run_data.has_saved_run or not load_version
 			saved_run.saved_run_level = level_sequence.levels()[saved_run_data.level+1]
 			saved_run.saved_run_attempts = saved_run_data.attempts
