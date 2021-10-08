@@ -1,6 +1,6 @@
 # JumpLunky
 
-Kaizo-like levels in Spelunky 2.
+Kaizo levels in Spelunky 2.
 
 Currently includes 5 levels with the following themes:
 - Dwelling (Enemy jumping)
