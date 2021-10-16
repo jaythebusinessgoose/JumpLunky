@@ -297,7 +297,6 @@ function journal.activate()
         else
             stats_title = "STATS"
         end
-        local stats_title_color = rgba(255,255,255,255)
         ctx:draw_text(stats_title, 0, .71, titlesize, titlesize, Color:white(), VANILLA_TEXT_ALIGNMENT.CENTER, VANILLA_FONT_STYLE.BOLD)
         ctx:draw_text("Hardcore", -statstextx, .7, titlesize, titlesize, Color:black(), VANILLA_TEXT_ALIGNMENT.RIGHT, VANILLA_FONT_STYLE.ITALIC)
         if journal_state.show_legacy_stats then

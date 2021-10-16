@@ -265,12 +265,10 @@ function win_ui.activate()
         local hardcoretextx = .1
         local _, textheight = ctx:draw_text_size("TestText,", fontsize, fontsize, VANILLA_FONT_STYLE.ITALIC)
         for _, text in ipairs(stat_texts) do
-            local t_color = rgba(0, 0, 36, 230)
             ctx:draw_text(text, statstextx, statstexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
             statstexty = statstexty + textheight - .04
         end
         for _, text in ipairs(pb_stat_texts) do
-            local t_color = rgba(0, 0, 36, 230)
             ctx:draw_text(text, hardcoretextx, hardcoretexty, fontsize, fontsize, Color:black(), VANILLA_TEXT_ALIGNMENT.LEFT, VANILLA_FONT_STYLE.ITALIC)
             hardcoretexty = hardcoretexty + textheight - .04
         end
