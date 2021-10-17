@@ -2,16 +2,22 @@
 
 Kaizo levels in Spelunky 2.
 
-Currently includes 5 levels with the following themes:
-- Dwelling (Enemy jumping)
-- Volcana (Chain jumping)
-- Temple (Crush trap puzzles)
-- Ice Caves (Spring traps)
-- Sunken City (Buble wrap platforming)
+Includes 5 levels with the following themes:
+- Dwelling
+- Volcana
+- Temple
+- Ice Caves
+- Sunken City
 
 Can you beat them all? Can you collect all of the golden idols?
 <br/>
 ## Version History
+
+### Version 2.1:
+
+Updated to work in patch 1.23.3!
+
+Modified layout of shortcuts in the base camp to be more linear.
 
 ### Version 2.0:
 
