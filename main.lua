@@ -158,6 +158,27 @@ end
 ---- CAMP
 --------------------------------------
 
+local function camp_bounds_callback()
+	return set_callback(function()
+		set_camp_camera_bounds_enabled(true)
+		set_global_timeout(function()
+			if state.theme ~= THEME.BASE_CAMP then return end
+			set_camp_camera_bounds_enabled(false)
+			state.camera.bounds_left = 0
+			state.camera.bounds_right = 72.5
+			state.camera.bounds_top = 130.4 - 8 * 6 + 16
+			state.camera.bounds_bottom = 130.6 - 8 * 6
+		end, 140)
+	end, ON.CAMP)
+
+end
+
+local function undo_camp_bounds_callback()
+	return set_callback(function()
+		set_camp_camera_bounds_enabled(true)
+	end, ON.LEVEL)
+end
+
 local continue_door
 
 function update_continue_door_enabledness()
@@ -904,6 +925,8 @@ local function activate()
 
 	set_journal_enabled(false)
 
+	add_callback(camp_bounds_callback())
+	add_callback(undo_camp_bounds_callback())
 	add_callback(volcano_shortcut_callback())
 	add_callback(temple_shortcut_callback())
 	add_callback(ice_shortcut_callback())
