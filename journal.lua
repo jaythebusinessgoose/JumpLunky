@@ -9,6 +9,7 @@ local journal_state = {
     active = false,
     hud = nil,
     button_handling = nil,
+    recap = nil,
 
     show_stats = false,
     show_legacy_stats = false,
@@ -96,6 +97,10 @@ end
 function journal.activate()
     if journal_state.active then return end
     journal_state.active = true
+
+    journal_state.recap = set_callback(function()
+        journal.hide()
+    end, ON.DEATH)
 
     journal_state.button_handling = set_callback(function()
         if #players < 1 then return end
@@ -340,6 +345,10 @@ function journal.deactivate()
         clear_callback(journal_state.button_handling)
     end
     journal_state.button_handling = nil
+    if journal_state.recap then
+        clear_callback(journal_state.recap)
+    end
+    journal_state.recap = nil
 end
 
 set_callback(function()
