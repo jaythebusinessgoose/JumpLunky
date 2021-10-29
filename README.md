@@ -13,6 +13,16 @@ Can you beat them all? Can you collect all of the golden idols?
 <br/>
 ## Version History
 
+### Version 2.3:
+
+Updated to fix some bugs that show up in 1.25.0b
+
+Hard mode is now available without collecting all idols (hardcore is still blocked).
+
+Fixed some missing tiles in the sunken city level.
+
+Made a small modification to the dwelling level.
+
 ### Version 2.1:
 
 Updated to work in patch 1.23.3!
