@@ -87,6 +87,7 @@
 \?bigspear_trap                     C
 \?sticky_trap                       B
 \?sunken_floor                      =
+\?litwalltorch                      O
 
 // ------------------------------
 //  TEMPLATES
@@ -262,8 +263,8 @@ K.......11 L111111111
 mrm1111110 0000L0000X
 mrrmm11110 0000L0000X
 m1mmr11110 0===00000X
-m11r110000 01A1P---0X
-mmmm1100r0 0l01L11-0X
+m11r110000 01A1P===0X
+mmmm1100r0 0l01L11=0X
 1111110010 0000L0000X
 11111100r0 0000L0000X
 1111110010 XXXXXXXXXX
