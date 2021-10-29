@@ -47,3 +47,6 @@ Releases
 
 # IDEs
 *.code-workspace
+
+# Mac
+*.DS_Store
