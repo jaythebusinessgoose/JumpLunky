@@ -13,6 +13,10 @@ Can you beat them all? Can you collect all of the golden idols?
 <br/>
 ## Version History
 
+### Version 2.4:
+
+Fixed a bug where gold in walls would pop out in new Playlunky versions.
+
 ### Version 2.3:
 
 Updated to fix some bugs that show up in 1.25.0b
