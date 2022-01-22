@@ -9,8 +9,8 @@ local ice_caves = {
     identifier = "ice",
     title = "Ice Caves",
     theme = THEME.SUNKEN_CITY,
-    width = 4,
-    height = 4,
+    width = 8,
+    height = 2,
     file_name = "Sunken City-2.lvl",
 }
 
