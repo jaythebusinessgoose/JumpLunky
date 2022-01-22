@@ -8,10 +8,10 @@ define_tile_code("ice_idol")
 local ice_caves = {
     identifier = "ice",
     title = "Ice Caves",
-    theme = THEME.ICE_CAVES,
+    theme = THEME.SUNKEN_CITY,
     width = 4,
-    height = 13,
-    file_name = "ice.lvl",
+    height = 4,
+    file_name = "Sunken City-2.lvl",
 }
 
 local level_state = {
@@ -34,13 +34,13 @@ ice_caves.set_run_idol_collected = function(collected)
 end
 
 local function update_file_name()
-    if overall_state.difficulty == DIFFICULTY.HARD then
-        ice_caves.file_name = "ice-hard.lvl"
-    elseif overall_state.difficulty == DIFFICULTY.EASY then
-        ice_caves.file_name = "ice-easy.lvl"
-    else
-        ice_caves.file_name = "ice.lvl"
-    end
+--     if overall_state.difficulty == DIFFICULTY.HARD then
+--         ice_caves.file_name = "ice-hard.lvl"
+--     elseif overall_state.difficulty == DIFFICULTY.EASY then
+--         ice_caves.file_name = "ice-easy.lvl"
+--     else
+--         ice_caves.file_name = "ice.lvl"
+--     end
 end
 
 ice_caves.set_difficulty = function(difficulty)
@@ -110,7 +110,7 @@ ice_caves.load_level = function()
             -- Do not spawn the idol in easy or if it has been collected.
             return true
         end
-    
+
         local idol_uid = spawn_entity_over(ENT_TYPE.ITEM_ALIVE_EMBEDDED_ON_ICE, ice_uid, 0, 0)
         local idol = get_entity(idol_uid)
         if overall_state.idol_collected then
