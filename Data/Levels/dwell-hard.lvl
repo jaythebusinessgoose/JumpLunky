@@ -1,55 +1,43 @@
 // ------------------------------
-//  JumpLunky
+// JumpLunky
 // ------------------------------
 
-\-back_room_chance 0						// % chance of a second room (default = 6%)
-\-back_room_interconnection_chance 0		// % chance of a second room interconnection (default = 20%)
-\-back_room_hidden_door_chance 0			// 1/N chance of a hidden door (default = 500)
-\-back_room_hidden_door_cache_chance 0		// 1/N chance of a hidden door to a cache (default = 1000)
-\-mount_chance 0							// 1/N chance of a mount (default = 5000)
-\-altar_room_chance 0						// 1/N chance of an altar room (default = 14)
-\-idol_room_chance 0						// 1/N chance of an idol room (default = 10)
-\-floor_side_spread_chance 0				// 1/N chance of a spreadable floor spreading to its side (default = 10)
-\-floor_bottom_spread_chance 0				// 1/N chance of a spreadable floor spreading to its bottom (default = 5)
+\-back_room_chance                       0          // % chance of a second room (default = 6%)
+\-back_room_interconnection_chance       0          // % chance of a second room interconnection (default = 20%)
+\-back_room_hidden_door_chance           0          // 1/N chance of a hidden door (default = 500)
+\-back_room_hidden_door_cache_chance     0          // 1/N chance of a hidden door to a cache (default = 1000)
+\-mount_chance                           0          // 1/N chance of a mount (default = 5000)
+\-altar_room_chance                      0          // 1/N chance of an altar room (default = 14)
+\-idol_room_chance                       0          // 1/N chance of an idol room (default = 10)
+\-floor_side_spread_chance               0          // 1/N chance of a spreadable floor spreading to its side (default = 10)
+\-floor_bottom_spread_chance             0          // 1/N chance of a spreadable floor spreading to its bottom (default = 5)
+\-size                                   4 5
 
-// ------------------------------
-//  TILE CODES
-// ------------------------------
+\?empty                            0
+\?floor                            1
+\?minewood_floor                   =
+\?entrance                         E
+\?exit                             e
+\?spikes                           ^
+\?arrow_trap                       A
+\?platform                         p
+\?bat_generator                    B
+\?bat_switch                       b
+\?lizard                           h
+\?totem_trap                       t
+\?ladder                           L
+\?ladder_plat                      P
+\?moving_totem                     M
+\?totem_switch                     g
+\?idol_reward                      Q
+\?dialog_block                     R
+\?telescope_right                  j
+\?floor_hard                       X
 
-\?empty						0
-\?floor						1
-\?minewood_floor			=
-\?entrance					E
-\?exit						e
-\?spikes					^
-\?arrow_trap                A
-\?platform					p
-\?bat_generator				B
-\?bat_switch             	b
-\?lizard					h
-\?totem_trap				t
-\?ladder					L
-\?ladder_plat				P
-\?moving_totem				M
-\?totem_switch				g
-\?idol_reward				Q
-\?dialog_block				R
-\?telescope_right			j
 
-// ------------------------------
-//  TEMPLATES
-// ------------------------------
-//
-//  !ignore		Ignore the following template. This is to make building rooms easier.
-//  !flip		Flip the following template to make another. i.e. The following template = two templates.
-//  !onlyflip	Flip the following template (original is ignored)
-//  !dual		The next template contains both a frontal and back room
-//  !rare		The next template is rare (only 5% chance of a rare template being used).
-//  !hard		The next template is hard (only appear in the second two levels of the area).
-//  !liquid		The next template contains liquid (used to limit the number of liquid drops)
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_0
+\.setroom0_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -62,7 +50,7 @@
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_1
+\.setroom0_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1100000000
@@ -75,7 +63,7 @@
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_2
+\.setroom0_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000001111
@@ -88,7 +76,7 @@
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_3
+\.setroom0_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -101,7 +89,7 @@
 0L11111001
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_0
+\.setroom1_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -114,7 +102,7 @@ jE00000000
 1110000000
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_1
+\.setroom1_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -126,9 +114,8 @@ jE00000000
 1111111011
 11100000A1
 
-
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_2
+\.setroom1_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -141,7 +128,7 @@ jE00000000
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_3
+\.setroom1_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0L11111001
@@ -154,7 +141,7 @@ jE00000000
 1111111001
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_0
+\.setroom2_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 \!dual
@@ -168,7 +155,7 @@ jE00000000
 11111^^^^^ 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_1
+\.setroom2_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 B000110011
@@ -181,7 +168,7 @@ B000110011
 ^^^^^^^^00
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_2
+\.setroom2_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -194,7 +181,7 @@ B000110011
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_3
+\.setroom2_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111001
@@ -207,7 +194,7 @@ B000110011
 ===1111001
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_0
+\.setroom3_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -220,7 +207,7 @@ B000110011
 1A00111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_1
+\.setroom3_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111100
@@ -233,7 +220,7 @@ B000110011
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_2
+\.setroom3_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 11111100b1
@@ -246,7 +233,7 @@ A111110111
 1111111010
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_3
+\.setroom3_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1=====1001
@@ -258,10 +245,8 @@ A111110111
 0=====0001
 ======0001
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom4_0
+\.setroom4_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1110000000
@@ -274,7 +259,7 @@ A111110111
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom4_1
+\.setroom4_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000000000
@@ -287,7 +272,7 @@ A111110111
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom4_2
+\.setroom4_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000000010
@@ -300,7 +285,7 @@ A111110111
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom4_3
+\.setroom4_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111110001
@@ -311,5 +296,3 @@ A111110111
 1111111111
 1111111111
 1111111111
-
-

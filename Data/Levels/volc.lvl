@@ -1,58 +1,43 @@
 // ------------------------------
-//  JumpLunky
+// JumpLunky
 // ------------------------------
 
-\-back_room_chance 0						// % chance of a second room (default = 6%)
-\-back_room_interconnection_chance 0		// % chance of a second room interconnection (default = 20%)
-\-back_room_hidden_door_chance 0			// 1/N chance of a hidden door (default = 500)
-\-back_room_hidden_door_cache_chance 0		// 1/N chance of a hidden door to a cache (default = 1000)
-\-mount_chance 0							// 1/N chance of a mount (default = 5000)
-\-altar_room_chance 0						// 1/N chance of an altar room (default = 14)
-\-idol_room_chance 0						// 1/N chance of an idol room (default = 10)
-\-floor_side_spread_chance 0				// 1/N chance of a spreadable floor spreading to its side (default = 10)
-\-floor_bottom_spread_chance 0				// 1/N chance of a spreadable floor spreading to its bottom (default = 5)
-\-max_liquid_particles 0					// Maximum number of liquid drops that can be created until no more liquid rooms are allowed
-\-flagged_liquid_rooms 0					// Number of random rooms that will be flagged for being eligible to spawn liquid
-\-machine_bigroom_chance 0					// 1/N chance of spawning a machine big room (default = 0)
-\-machine_wideroom_chance 0					// 1/N chance of spawning a machine wide room (default = 0)
-\-machine_tallroom_chance 0					// 1/N chance of spawning a machine tall room (default = 0)
-\-machine_rewardroom_chance 0				// 1/N chance of spawning a machine reward room (default = 0)
+\-back_room_chance                       0          // % chance of a second room (default = 6%)
+\-back_room_interconnection_chance       0          // % chance of a second room interconnection (default = 20%)
+\-back_room_hidden_door_chance           0          // 1/N chance of a hidden door (default = 500)
+\-back_room_hidden_door_cache_chance     0          // 1/N chance of a hidden door to a cache (default = 1000)
+\-mount_chance                           0          // 1/N chance of a mount (default = 5000)
+\-altar_room_chance                      0          // 1/N chance of an altar room (default = 14)
+\-idol_room_chance                       0          // 1/N chance of an idol room (default = 10)
+\-floor_side_spread_chance               0          // 1/N chance of a spreadable floor spreading to its side (default = 10)
+\-floor_bottom_spread_chance             0          // 1/N chance of a spreadable floor spreading to its bottom (default = 5)
+\-max_liquid_particles                   0          // Maximum number of liquid drops that can be created until no more liquid rooms are allowed
+\-flagged_liquid_rooms                   0          // Number of random rooms that will be flagged for being eligible to spawn liquid
+\-machine_bigroom_chance                 0          // 1/N chance of spawning a machine big room (default = 0)
+\-machine_wideroom_chance                0          // 1/N chance of spawning a machine wide room (default = 0)
+\-machine_tallroom_chance                0          // 1/N chance of spawning a machine tall room (default = 0)
+\-machine_rewardroom_chance              0          // 1/N chance of spawning a machine reward room (default = 0)
+\-size                                   4 4
 
-// ------------------------------
-//  TILE CODES
-// ------------------------------
-
-\?empty								0
-\?floor								1
-\?floor_hard						X
-\?entrance							E
-\?exit								e
-\?falling_platform					p
-\?conveyorbelt_left					<
-\?conveyorbelt_right				>
-\?spikeball_trap					s
-\?lava								q
-\?rope_crate						R
-\?imp								H
-\?idol_reward						Q
-\?telescope_right					j
-
-// ------------------------------
-//  TEMPLATES
-// ------------------------------
-//
-//  !ignore		Ignore the following template. This is to make building rooms easier.
-//  !flip		Flip the following template to make another. i.e. The following template = two templates.
-//  !onlyflip	Flip the following template (original is ignored)
-//  !dual		The next template contains both a frontal and back room
-//  !rare		The next template is rare (only 5% chance of a rare template being used).
-//  !hard		The next template is hard (only appear in the second two levels of the area).
-//  !liquid		The next template contains liquid (used to limit the number of liquid drops)
+\?empty                            0
+\?floor                            1
+\?floor_hard                       X
+\?entrance                         E
+\?exit                             e
+\?falling_platform                 p
+\?conveyorbelt_left                <
+\?conveyorbelt_right               >
+\?spikeball_trap                   s
+\?lava                             q
+\?rope_crate                       R
+\?imp                              H
+\?idol_reward                      Q
+\?telescope_right                  j
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_0
+\.setroom0_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -65,7 +50,7 @@
 1000000000
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_1
+\.setroom0_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 11s111s111
@@ -78,7 +63,7 @@
 0000000000
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_2
+\.setroom0_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 s111111111
@@ -91,7 +76,7 @@ s111111111
 0000000000
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_3
+\.setroom0_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -104,7 +89,7 @@ s111111111
 0000010111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_0
+\.setroom1_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1000000000
@@ -117,7 +102,7 @@ j0E0000000
 1111qqqqqq
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_1
+\.setroom1_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000000000
@@ -129,9 +114,8 @@ j0E0000000
 qqqqqqqqq0
 qqqqqqqqqq
 
-
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_2
+\.setroom1_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000000000
@@ -144,7 +128,7 @@ XXXXXXXXXX
 qqqqqqqqqq
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_3
+\.setroom1_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000010111
@@ -157,7 +141,7 @@ qqqq0000p0
 qqqq<00000
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_0
+\.setroom2_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111qqqqqq
@@ -170,7 +154,7 @@ qqqq<00000
 1111011111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_1
+\.setroom2_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 qqqqqqqqqq
@@ -183,7 +167,7 @@ qqqqqqqqqq
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_2
+\.setroom2_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 qqqqqqqqqq
@@ -196,7 +180,7 @@ qqqqqqqqqq
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_3
+\.setroom2_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 qqqq100000
@@ -209,7 +193,7 @@ qqqq100000
 0000000000
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_0
+\.setroom3_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000000000
@@ -222,7 +206,7 @@ qqqq100000
 1111111qqq
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_1
+\.setroom3_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000000000
@@ -235,7 +219,7 @@ qqqqqqqqqq
 qqqqqqqqqq
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_2
+\.setroom3_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000000000
@@ -248,7 +232,7 @@ qqqqqqqqqq
 qqqqqqqqqq
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_3
+\.setroom3_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0000000000

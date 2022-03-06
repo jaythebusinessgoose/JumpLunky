@@ -1,109 +1,89 @@
 // ------------------------------
-//  JumpLunky
+// JumpLunky
 // ------------------------------
 
-\-back_room_chance 0						// % chance of a second room (default = 6%)
-\-back_room_interconnection_chance 0		// % chance of a second room interconnection (default = 20%)
-\-back_room_hidden_door_chance 0			// 1/N chance of a hidden door (default = 500)
-\-back_room_hidden_door_cache_chance 0		// 1/N chance of a hidden door to a cache (default = 1000)
-\-mount_chance 0							// 1/N chance of a mount (default = 5000)
-\-altar_room_chance 0						// 1/N chance of an altar room (default = 14)
-\-idol_room_chance 0						// 1/N chance of an idol room (default = 10)
-\-floor_side_spread_chance 0				// 1/N chance of a spreadable floor spreading to its side (default = 10)
-\-floor_bottom_spread_chance 0				// 1/N chance of a spreadable floor spreading to its bottom (default = 5)
-\-max_liquid_particles 0					// Maximum number of liquid drops that can be created until no more liquid rooms are allowed
-\-flagged_liquid_rooms 0					// Number of random rooms that will be flagged for being eligible to spawn liquid
-\-machine_bigroom_chance 0					// 1/N chance of spawning a machine big room (default = 0)
-\-machine_wideroom_chance 0					// 1/N chance of spawning a machine wide room (default = 0)
-\-machine_tallroom_chance 0					// 1/N chance of spawning a machine tall room (default = 0)
-\-machine_rewardroom_chance 0				// 1/N chance of spawning a machine reward room (default = 0)
+\-back_room_chance                       0          // % chance of a second room (default = 6%)
+\-back_room_interconnection_chance       0          // % chance of a second room interconnection (default = 20%)
+\-back_room_hidden_door_chance           0          // 1/N chance of a hidden door (default = 500)
+\-back_room_hidden_door_cache_chance     0          // 1/N chance of a hidden door to a cache (default = 1000)
+\-mount_chance                           0          // 1/N chance of a mount (default = 5000)
+\-altar_room_chance                      0          // 1/N chance of an altar room (default = 14)
+\-idol_room_chance                       0          // 1/N chance of an idol room (default = 10)
+\-floor_side_spread_chance               0          // 1/N chance of a spreadable floor spreading to its side (default = 10)
+\-floor_bottom_spread_chance             0          // 1/N chance of a spreadable floor spreading to its bottom (default = 5)
+\-max_liquid_particles                   0          // Maximum number of liquid drops that can be created until no more liquid rooms are allowed
+\-flagged_liquid_rooms                   0          // Number of random rooms that will be flagged for being eligible to spawn liquid
+\-machine_bigroom_chance                 0          // 1/N chance of spawning a machine big room (default = 0)
+\-machine_wideroom_chance                0          // 1/N chance of spawning a machine wide room (default = 0)
+\-machine_tallroom_chance                0          // 1/N chance of spawning a machine tall room (default = 0)
+\-machine_rewardroom_chance              0          // 1/N chance of spawning a machine reward room (default = 0)
+\-size                                   4 4
+
+\?empty                            0
+\?floor                            1
+\?floor_hard                       X
+\?entrance                         E
+\?exit                             e
+\?ladder                           L
+\?ladder_plat                      P
+\?laser_switch                     R
+\?firefrog                         F
+\?challenge_forcefield_switchable  3
+\?merchant                         #
+\?shop_wall                        .
+\?shop_woodwall                    :
+\?timed_forcefield                 )
+\?challenge_waitroom_switchable    U
+\?forcefield_top                   '
+\?lamp_hang                        l
+\?wanted_poster                    W
+\?shop_sign                        K
+\?shop_door                        k
+\?houyibow                         H
+\?lightarrow                       a
+\?sunchallenge_generator           A
+\?sunchallenge_switch              c
+\?ana_spelunky                     y
+\?challenge_reward                 Q
+\?eggsac                           z
+\?water                            m
+\?telescope_right                  b
+\?kali_statue                      @
+\?pipe                             p
+\?altar                            x
+\?spikes                           ^
+\?door2                            D
+\?giant_frog                       n
+\?guts_floor                       T
+\?regenerating_block               r
+\?bigspear_trap                    C
+\?sticky_trap                      B
+\?sunken_floor                     =
+\?litwalltorch                     O
 
 // ------------------------------
-//  LEVEL CHANCES
+// LEVEL CHANCES
 // ------------------------------
 
-\%spike_ball_chance			0
-\%chain_blocks_chance		0
-\%pushblock_chance 			0	// Used both for powder kegs and push blocks
-\%leprechaun_chance			0	// 1/n chance that a Leprechaun will spawn
+\%spike_ball_chance            0
+\%chain_blocks_chance          0
+\%pushblock_chance             0                            // Used both for powder kegs and push blocks
+\%leprechaun_chance            0                            // 1/n chance that a Leprechaun will spawn
 
 // ------------------------------
-//  MONSTER CHANCES
+// MONSTER CHANCES
 // ------------------------------
 
-\+bat			0					// 1/60 chance in each level, only appears on ceiling
-\+caveman		0	// 1/120 chance in level 1, 1/110 in level 2, etc.
-\+robot			0
-\+firebug		0					// this chance is only used on each piece of chain
-\+imp			0
-\+lavamander	0
-\+crittersnail	0
-
-// ------------------------------
-//  TILE CODES
-// ------------------------------
-
-\?empty								0
-\?floor								1
-\?floor_hard						X
-\?entrance							E
-\?exit								e
-\?ladder							L
-\?ladder_plat						P
-\?laser_switch						R
-\?firefrog							F
-\?challenge_forcefield_switchable	3
-\?merchant							#
-\?shop_wall							.
-\?shop_woodwall						:
-\?timed_forcefield					)
-\?challenge_waitroom_switchable		U
-\?forcefield_top					'
-\?lamp_hang							l
-\?wanted_poster						W
-\?shop_sign							K
-\?shop_door							k
-\?houyibow							H
-\?lightarrow						a
-\?sunchallenge_generator			A
-\?sunchallenge_switch				c
-\?ana_spelunky						y
-\?challenge_reward					Q
-\?eggsac							z
-\?water                             m
-\?telescope_right                   b
-\?kali_statue                       @
-\?pipe                              p
-\?shop_sign                         K
-\?lamp_hang                         l
-\?shop_wall                         .
-\?wanted_poster                     W
-\?altar                             x	// Each side of the altar
-\?spikes                            ^
-\?door2                             D	// Door to other Layer
-\?giant_frog                        n
-\?guts_floor                        T
-\?regenerating_block                r
-\?bigspear_trap                     C
-\?sticky_trap                       B
-\?sunken_floor                      =
-\?litwalltorch                      O
-
-// ------------------------------
-//  TEMPLATES
-// ------------------------------
-//
-//  !ignore		Ignore the following template. This is to make building rooms easier.
-//  !flip		Flip the following template to make another. i.e. The following template = two templates.
-//  !onlyflip	Flip the following template (original is ignored)
-//  !dual		The next template contains both a frontal and back room
-//  !rare		The next template is rare (only 5% chance of a rare template being used).
-//  !hard		The next template is hard (only appear in the second two levels of the area).
-//  !liquid		The next template contains liquid (used to limit the number of liquid drops)
-
+\+bat                   0                            // 1/60 chance in each level, only appears on ceiling
+\+caveman               0                            // 1/120 chance in level 1, 1/110 in level 2, etc.
+\+robot                 0
+\+firebug               0                            // this chance is only used on each piece of chain
+\+imp                   0
+\+lavamander            0
+\+crittersnail          0
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_0
+\.setroom0_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -116,7 +96,7 @@
 1000000000
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_1
+\.setroom0_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -129,7 +109,7 @@
 0000001111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_2
+\.setroom0_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111111
@@ -142,9 +122,8 @@
 11r000r111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom0_3
+\.setroom0_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
-
 
 1111111111
 0000000000
@@ -156,10 +135,8 @@ rr==0===rr
 11==0===11
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_0
+\.setroom1_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
-
-
 
 1000000ppp
 1111111p1p
@@ -171,7 +148,7 @@ rr==0===rr
 0000011111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_1
+\.setroom1_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 \!dual
@@ -185,7 +162,7 @@ p000000000 X1rry00000
 1111111111 X1A11P1100
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_2
+\.setroom1_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 \!dual
@@ -198,9 +175,8 @@ p000000000 X1rry00000
 0r000rrr11 0000==0000
 1111111111 0000000000
 
-
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom1_3
+\.setroom1_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 \!dual
@@ -214,7 +190,7 @@ p000000000 X1rry00000
 m1mm11111z 0011P11A1X
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_0
+\.setroom2_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 0r00111111
@@ -227,7 +203,7 @@ m1mm11111z 0011P11A1X
 1111111000
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_1
+\.setroom2_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 \!dual
@@ -241,9 +217,8 @@ m1mm11111z 0011P11A1X
 1111111111 XXXXXXXXXX
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_2
+\.setroom2_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
-
 
 \!dual
 1111111111 L0O00000O0
@@ -256,7 +231,7 @@ K.......11 L111111111
 :::::::::: XUXXX3XXXX
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom2_3
+\.setroom2_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 \!dual
@@ -270,7 +245,7 @@ mmmm1100r0 0l01L11=0X
 1111110010 XXXXXXXXXX
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_0
+\.setroom3_0   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 1111111000
@@ -283,7 +258,7 @@ mmmm1100r0 0l01L11=0X
 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_1
+\.setroom3_1   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 \!dual
@@ -297,7 +272,7 @@ mmmm1100r0 0l01L11=0X
 11rr111111 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_2
+\.setroom3_2   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 \!dual
@@ -311,7 +286,7 @@ mmmm1100r0 0l01L11=0X
 1111111rr1 1111111111
 
 ////////////////////////////////////////////////////////////////////////////////
-\.setroom3_3
+\.setroom3_3   // cave
 ////////////////////////////////////////////////////////////////////////////////
 
 \!dual
@@ -323,5 +298,3 @@ mmmm1100r0 0l01L11=0X
 0000000000 TTT0TppppT
 00000011rr 1TTTTTTTTT
 1111111rr1 1111111111
-
-
