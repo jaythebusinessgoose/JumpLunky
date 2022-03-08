@@ -1,7 +1,9 @@
-meta.name = 'Jumplunky'
-meta.version = '2.4'
-meta.description = 'Challenging platforming puzzles'
-meta.author = 'JayTheBusinessGoose'
+meta = {
+	name = 'Jumplunky',
+	version = '2.5',
+	description = 'Challenging platforming puzzles',
+	author = 'JayTheBusinessGoose',
+}
 
 local level_sequence = require("LevelSequence/level_sequence")
 local SIGN_TYPE = level_sequence.SIGN_TYPE
