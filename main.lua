@@ -191,7 +191,7 @@ end
 -- from the level it is being spawned for.
 local function spawn_camp_idol_for_level(level, x, y, layer)
 	if not game_state.idols_collected[level.identifier] then return end
-	
+
 	local idol_uid = spawn_entity(ENT_TYPE.ITEM_IDOL, x, y, layer, 0, 0)
 	local idol = get_entity(idol_uid)
 	idol.flags = clr_flag(idol.flags, ENT_FLAG.THROWABLE_OR_KNOCKBACKABLE)
@@ -377,7 +377,7 @@ local function tunnel_position_callback()
 			-- Legacy stats sign opens journal; only spawns if legacy stats exist.
 			action_signs.spawn_sign(x + 11, y, layer, button_prompts.PROMPT_TYPE.VIEW, function()
 				journal.show(game_state.legacy_stats, game_state.legacy_hardcore_stats, game_state.difficulty, 6)
-		
+
 				-- Cancel speech bubbles so they don't show above stats.
 				cancel_speechbubble()
 				-- Hide the prompt so it doesn't show above stats.
@@ -406,7 +406,7 @@ local function tunnel_spawn_callback()
 		end
 		local tunnel_id = spawn_entity(ENT_TYPE.MONS_MARLA_TUNNEL, tunnel_x, tunnel_y, tunnel_layer, 0, 0)
 		tunnel = get_entity(tunnel_id)
-		
+
 		tunnel.flags = clr_flag(tunnel.flags, ENT_FLAG.ENABLE_BUTTON_PROMPT)
 		tunnel.flags = set_flag(tunnel.flags, ENT_FLAG.FACING_LEFT)
 		--end
@@ -449,7 +449,7 @@ local function tunnel_text_callback()
 		if state.theme ~= THEME.BASE_CAMP then return end
 		if #players < 1 then return end
 		local player = players[1]
-		
+
 		local x, y, layer = get_position(player.uid)
 		if layer == LAYER.FRONT then
 			-- Reset tunnel dialog states when exiting the back layer so the dialog shows again.
@@ -551,7 +551,7 @@ end)
 
 level_sequence.set_on_post_level_generation(function(level)
 	if #players == 0 then return end
-	
+
 	players[1].inventory.bombs = initial_bombs
 	players[1].inventory.ropes = initial_ropes
 	if players[1]:get_name() == "Roffy D. Sloth" or level == ice_caves then
@@ -600,7 +600,7 @@ level_sequence.set_on_win(function(attempts, total_time)
 			saved_run.saved_run_level = nil
 			saved_run.saved_run_time = nil
 		end
-			
+
 		local new_time_pb = false
 		if not current_stats.best_time or
 				current_stats.best_time == 0 or
@@ -623,7 +623,7 @@ level_sequence.set_on_win(function(attempts, total_time)
 				stats_hardcore.best_time_idol_count = game_state.idols
 			end
 		end
-		
+
 		if game_state.idols == #level_sequence.levels() and game_state.difficulty ~= DIFFICULTY.EASY then
 			current_stats.max_idol_completions = current_stats.max_idol_completions + 1
 			if not current_stats.max_idol_best_time or
@@ -640,7 +640,7 @@ level_sequence.set_on_win(function(attempts, total_time)
 				end
 			end
 		end
-		
+
 		local new_deaths_pb = false
 		if not current_stats.least_deaths_completion or
 				deaths < current_stats.least_deaths_completion or
@@ -655,24 +655,26 @@ level_sequence.set_on_win(function(attempts, total_time)
 			if attempts == 1 then
 				current_stats.deathless_completions = current_stats.deathless_completions + 1
 			end
-		end 
+		end
 
-		win_ui.win(
-			total_time,
-			deaths,
-			game_state.idols,
-			game_state.difficulty,
-			game_state.stats,
-			game_state.hardcore_stats,
-			game_state.hardcore_enabled,
-			#level_sequence.levels(),
-			new_time_pb,
-			new_deaths_pb)
-		bottom_hud.update_win_state(true)
-		win_ui.set_on_dismiss(function()
-			bottom_hud.update_win_state(false)
-		end)
-	end 
+		set_global_timeout(function()
+			win_ui.win(
+				total_time,
+				deaths,
+				game_state.idols,
+				game_state.difficulty,
+				game_state.stats,
+				game_state.hardcore_stats,
+				game_state.hardcore_enabled,
+				#level_sequence.levels(),
+				new_time_pb,
+				new_deaths_pb)
+			bottom_hud.update_win_state(true)
+			win_ui.set_on_dismiss(function()
+				bottom_hud.update_win_state(false)
+			end)
+		end, 2)
+	end
 	warp(1, 1, THEME.BASE_CAMP)
 end)
 
@@ -784,13 +786,13 @@ end
 --------------------------------------
 
 --------------------------------------
----- DO NOT SPAWN GHOST 
+---- DO NOT SPAWN GHOST
 --------------------------------------
 
 set_ghost_spawn_times(-1, -1)
 
 --------------------------------------
----- /DO NOT SPAWN GHOST 
+---- /DO NOT SPAWN GHOST
 --------------------------------------
 
 --------------------------------------
