@@ -13,6 +13,10 @@ Can you beat them all? Can you collect all of the golden idols?
 <br/>
 ## Version History
 
+### Version 2.5:
+
+Fixed Ice Caves Crash,
+
 ### Version 2.4:
 
 Fixed a bug where gold in walls would pop out in new Playlunky versions.
