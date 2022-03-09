@@ -54,15 +54,15 @@ dwelling.load_level = function()
         bat_generator = generator
         return true
     end, "bat_generator")
-    
+
     local bat_switch
     level_state.callbacks[#level_state.callbacks+1] = set_pre_tile_code_callback(function(x, y, layer)
         local switch_id = spawn_entity(ENT_TYPE.ITEM_SLIDINGWALL_SWITCH, x, y, layer, 0, 0)
         bat_switch = get_entity(switch_id)
         return true
     end, "bat_switch")
-    
-    
+
+
     local last_spawn
     local spawned_bat
     level_state.callbacks[#level_state.callbacks+1] = set_post_entity_spawn(function(ent)
@@ -82,7 +82,7 @@ dwelling.load_level = function()
         -- Turn off the generator when a bat is spawned to make sure only one bat is ever spawned at a time.
         bat_generator.on_off = false
     end, SPAWN_TYPE.SYSTEMIC, 0, {ENT_TYPE.MONS_SORCERESS, ENT_TYPE.MONS_VAMPIRE, ENT_TYPE.MONS_WITCHDOCTOR, ENT_TYPE.MONS_NECROMANCER})
-    
+
     local has_activated_bats = false
     level_state.callbacks[#level_state.callbacks+1] = set_callback(function ()
         local bat_entity = get_entity(spawned_bat)
@@ -94,7 +94,7 @@ dwelling.load_level = function()
         if bat_switch.timer > 0 and not has_activated_bats then
             bat_generator.on_off = true
             has_activated_bats = true
-            
+
             sound.play_sound(VANILLA_SOUND.UI_SECRET)
         end
     end, ON.FRAME)
@@ -102,7 +102,7 @@ dwelling.load_level = function()
     -- Creates walls that will be destroyed when the totem_switch is switched. Don't ask why these are called totems, they're just walls.
     local moving_totems = {}
     level_state.callbacks[#level_state.callbacks+1] = set_pre_tile_code_callback(function(x, y, layer)
-        clear_embeds.perform_block_without_embeds(function()        
+        clear_embeds.perform_block_without_embeds(function()
             local totem_uid = spawn_entity(ENT_TYPE.FLOOR_GENERIC, x, y, layer, 0, 0)
             moving_totems[#moving_totems + 1] = get_entity(totem_uid)
         end)
@@ -122,7 +122,7 @@ dwelling.load_level = function()
         if totem_switch.timer > 0 and not has_activated_totem then
             has_activated_totem = true
             for _, moving_totem in ipairs(moving_totems) do
-                kill_entity(moving_totem.uid)	
+                kill_entity(moving_totem.uid)
             end
             moving_totems = {}
         end
@@ -143,7 +143,7 @@ dwelling.load_level = function()
         local player = players[1]
         local player_uid = player.uid
         local x, y, layer = get_position(player_uid)
-  
+
         if x <= dialog_block_pos_x and y >= dialog_block_pos_y then
             if not hasDisplayedDialog then
                 say(player_uid, "I don't think this is the right way.", 0, true)
